@@ -110,3 +110,193 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize button actions
     ActionModule.init();
 });
+
+
+
+
+/**
+ * script.js - Application Entry Point & Orchestrator
+ */
+
+// Import Modules
+import UploadModule from './upload.js';
+import CleanerModule from './cleaner.js';
+import MapperModule from './mapper.js';
+import ValidatorModule from './validator.js';
+import ReconcileModule from './reconcile.js';
+import GSTEngineModule from './gst_engine.js';
+import ReportGeneratorModule from './report_generator.js';
+import ExportModule from './export.js';
+
+// Local State for results that don't belong in global GST_DATA
+let validationReport = null;
+let reconciliationResult = null;
+let finalTaxReport = null;
+
+const App = {
+    init() {
+        this.bindEvents();
+        this.log("System Ready. Please upload files.");
+    },
+
+    bindEvents() {
+        // File Upload Elements
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => this.handleUpload(e.target.files);
+
+        // Drag & Drop
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('drag-over');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            this.handleUpload(e.dataTransfer.files);
+        };
+
+        // Action Buttons
+        document.getElementById('btn-clean').onclick = () => this.runCleaning();
+        document.getElementById('btn-map').onclick = () => this.runMapping();
+        document.getElementById('btn-validate').onclick = () => this.runValidation();
+        document.getElementById('btn-reconcile').onclick = () => this.runReconciliation();
+        document.getElementById('btn-gst').onclick = () => this.runGSTGeneration();
+        document.getElementById('btn-export').onclick = () => this.runExport();
+    },
+
+    /**
+     * WORKFLOW STEP 1: UPLOAD
+     */
+    async handleUpload(files) {
+        try {
+            this.log("Uploading and parsing files...");
+            await UploadModule.processFiles(files);
+            this.updateUIFileList();
+            this.log(`Files uploaded: Sales(${window.GST_DATA.sales.length}), Purchase(${window.GST_DATA.purchase.length}), 2B(${window.GST_DATA.gstr2b.length})`);
+        } catch (err) {
+            this.log("Upload Error: " + err.message);
+        }
+    },
+
+    /**
+     * WORKFLOW STEP 2: CLEAN
+     */
+    runCleaning() {
+        if (!this.checkData()) return;
+        CleanerModule.cleanAll();
+        this.log("Data cleaned: Dates standardized, empty rows removed, and spaces trimmed.");
+    },
+
+    /**
+     * WORKFLOW STEP 3: MAP
+     */
+    runMapping() {
+        if (!this.checkData()) return;
+        MapperModule.runMapping();
+        this.log("Columns mapped to Standard Schema (Sales Master / Purchase Master).");
+    },
+
+    /**
+     * WORKFLOW STEP 4: VALIDATE
+     */
+    runValidation() {
+        if (!this.checkData()) return;
+        validationReport = ValidatorModule.runValidation();
+        
+        const errorCount = validationReport.sales.errors.length + validationReport.purchase.errors.length;
+        if (errorCount > 0) {
+            this.log(`Validation Complete: Found ${errorCount} errors. Exporting Error Report...`);
+            ExportModule.exportErrorReport(validationReport);
+        } else {
+            this.log("Validation Passed: No critical errors found.");
+        }
+    },
+
+    /**
+     * WORKFLOW STEP 5: RECONCILE
+     */
+    runReconciliation() {
+        if (window.GST_DATA.purchase.length === 0 || window.GST_DATA.gstr2b.length === 0) {
+            this.log("Error: Reconciliation requires both Purchase Register and GSTR-2B.");
+            return;
+        }
+        reconciliationResult = ReconcileModule.runReconciliation();
+        this.log(`Reconciliation Done: ${reconciliationResult.summary.total_matched} Match, ${reconciliationResult.summary.total_mismatched} Mismatch.`);
+        ExportModule.exportReconciliationReport(reconciliationResult.details);
+    },
+
+    /**
+     * WORKFLOW STEP 6: COMPUTE GST & GENERATE JSON
+     */
+    runGSTGeneration() {
+        if (!reconciliationResult) {
+            this.log("Error: Please run Reconciliation before generating GST.");
+            return;
+        }
+        
+        // Compute Taxes
+        const taxSummary = GSTEngineModule.computeGST(reconciliationResult.details);
+        
+        // Generate Govt-ready JSON Structure
+        finalTaxReport = ReportGeneratorModule.generateFinalJSON(reconciliationResult.details);
+        
+        this.log(`GST Computed: Net Payable ${taxSummary.net_payable.total}. JSON Ready for export.`);
+        alert(`Net GST Payable: ₹${taxSummary.net_payable.total}`);
+    },
+
+    /**
+     * WORKFLOW STEP 7: EXPORT
+     */
+    runExport() {
+        if (!finalTaxReport) {
+            this.log("Error: Nothing to export. Run 'Generate GST' first.");
+            return;
+        }
+        ExportModule.exportGSTR1(finalTaxReport.gstr1);
+        this.log("Exported GSTR-1 JSON and GSTR-3B Summary.");
+    },
+
+    /**
+     * HELPERS
+     */
+    checkData() {
+        const hasData = window.GST_DATA.sales.length > 0 || window.GST_DATA.purchase.length > 0;
+        if (!hasData) this.log("Error: No data found. Please upload files first.");
+        return hasData;
+    },
+
+    log(msg) {
+        const logger = document.getElementById('status-log');
+        const timestamp = new Date().toLocaleTimeString();
+        logger.innerText = `[${timestamp}] ${msg}`;
+        console.log(`[LOG] ${msg}`);
+    },
+
+    updateUIFileList() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        
+        const categories = [
+            { name: 'Sales Register', data: window.GST_DATA.sales },
+            { name: 'Purchase Register', data: window.GST_DATA.purchase },
+            { name: 'GSTR-2B Portal', data: window.GST_DATA.gstr2b }
+        ];
+
+        categories.forEach(cat => {
+            if (cat.data.length > 0) {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                li.innerHTML = `<span>📂 ${cat.name}</span> <strong>${cat.data.length} rows</strong>`;
+                list.appendChild(li);
+            }
+        });
+
+        if (list.innerHTML === '') {
+            list.innerHTML = '<li class="empty-msg">No files uploaded yet.</li>';
+        }
+    }
+};
+
+// Start App
+document.addEventListener('DOMContentLoaded', () => App.init());
