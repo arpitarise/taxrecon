@@ -25,6 +25,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF & AutoTable for GSTR-1 PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         /* Custom Scrollbar & Utilities */
@@ -43,6 +46,9 @@
         /* Table sticky header */
         .table-wrapper { max-height: calc(100vh - 280px); overflow-y: auto; }
         th { position: sticky; top: 0; z-index: 10; background-color: #f8fafc; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+        /* GSTR-1 Inner Tabs */
+        .gstr1-tab-btn.active { border-bottom: 2px solid #2563eb; color: #1d4ed8; font-weight: 600; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden selection:bg-primary-100 selection:text-primary-700">
@@ -55,6 +61,7 @@
         </div>
         
         <nav class="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+            <p class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Reconciliation Engine</p>
             <a href="#" onclick="UI.switchTab('upload')" id="nav-upload" class="flex items-center px-4 py-3 rounded-lg text-white bg-primary-600 hover:bg-primary-500 transition-colors group">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                 Data Ingestion
@@ -71,6 +78,17 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 Vendor Summary
             </a>
+
+            <div class="my-4 border-t border-slate-700"></div>
+            <p class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Audit Tools</p>
+            
+            <a href="#" onclick="UI.switchTab('gstr1')" id="nav-gstr1" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                GSTR-1 Analyzer
+            </a>
+
+            <div class="my-4 border-t border-slate-700"></div>
+
             <a href="#" onclick="UI.switchTab('settings')" id="nav-settings" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 Engine Settings
@@ -78,7 +96,7 @@
         </nav>
         
         <div class="p-4 border-t border-slate-800 text-xs text-slate-500">
-            Engine Version 3.3.0<br>Status: <span id="db-status" class="text-green-400">Ready</span>
+            Engine Version 4.0.0<br>Status: <span id="db-status" class="text-green-400">Ready</span>
         </div>
     </aside>
 
@@ -99,7 +117,7 @@
         <!-- Dynamic Content Area -->
         <div class="flex-1 overflow-y-auto p-8" id="main-scroll-area">
             
-            <!-- VIEW: UPLOAD -->
+            <!-- ================= VIEW: 2B RECON UPLOAD ================= -->
             <div id="view-upload" class="max-w-5xl mx-auto fade-in">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                     <div class="p-6 border-b border-gray-100 bg-gray-50/50">
@@ -172,7 +190,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: DASHBOARD -->
+            <!-- ================= VIEW: 2B RECON DASHBOARD ================= -->
             <div id="view-dashboard" class="max-w-7xl mx-auto hidden fade-in">
                 <!-- Summary Metrics -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -211,9 +229,8 @@
                 </div>
             </div>
 
-            <!-- VIEW: RECON DETAILS (TABLE) -->
+            <!-- ================= VIEW: 2B RECON DETAILS ================= -->
             <div id="view-recon" class="max-w-[1400px] mx-auto hidden fade-in">
-                
                 <!-- Filters -->
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap gap-4 items-end">
                     <div>
@@ -266,7 +283,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: VENDOR SUMMARY -->
+            <!-- ================= VIEW: VENDOR SUMMARY ================= -->
             <div id="view-vendors" class="max-w-6xl mx-auto hidden fade-in">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="p-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
@@ -293,7 +310,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: SETTINGS -->
+            <!-- ================= VIEW: SETTINGS ================= -->
             <div id="view-settings" class="max-w-4xl mx-auto hidden fade-in">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="p-6 border-b border-gray-100 bg-gray-50">
@@ -301,7 +318,6 @@
                         <p class="text-sm text-gray-500 mt-1">Configure algorithms and tolerance levels.</p>
                     </div>
                     <div class="p-8 space-y-8">
-                        
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Monetary Tolerance Limit (₹)</label>
                             <p class="text-xs text-gray-500 mb-3">Differences up to this value will be marked as MATCHED automatically.</p>
@@ -324,19 +340,6 @@
                             </div>
                         </div>
 
-                        <hr class="border-gray-100">
-                        
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700">Item-wise Aggregation</label>
-                                <p class="text-xs text-gray-500 mt-1">Automatically sums up multiple rows belonging to the same GSTIN & Invoice No.</p>
-                            </div>
-                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
-                                <input type="checkbox" id="set-aggregate" checked disabled class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-not-allowed opacity-70 z-10"/>
-                                <label for="set-aggregate" class="toggle-label block overflow-hidden h-6 rounded-full bg-green-400 cursor-not-allowed opacity-70"></label>
-                            </div>
-                        </div>
-
                         <div class="mt-6">
                             <button onclick="Engine.executeReconciliation()" class="bg-gray-800 text-white px-6 py-2 rounded shadow hover:bg-black transition">Apply & Re-Run Engine</button>
                         </div>
@@ -344,14 +347,189 @@
                 </div>
             </div>
 
+            <!-- ================= VIEW: GSTR-1 ANALYZER ================= -->
+            <div id="view-gstr1" class="max-w-7xl mx-auto hidden fade-in relative">
+                
+                <!-- GSTR1 Local Loading Overlay -->
+                <div id="gstr1-loadingOverlay" class="absolute inset-0 bg-white/90 z-50 hidden flex-col items-center justify-center rounded-xl">
+                    <svg class="animate-spin h-10 w-10 text-primary-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <h2 class="text-gray-800 text-lg font-semibold">Analyzing GSTR-1 Data...</h2>
+                </div>
+
+                <!-- GSTR1 Upload Area -->
+                <div id="gstr1-uploadSection" class="max-w-2xl mx-auto mt-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-10 text-center" id="gstr1-dropZone">
+                        <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Upload GSTR-1 JSON</h2>
+                        <p class="text-gray-500 mb-6">Drag and drop your Tally Prime JSON export here, or click to browse.</p>
+                        <input type="file" id="gstr1-fileInput" accept=".json" class="hidden">
+                        <button onclick="document.getElementById('gstr1-fileInput').click()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition">
+                            Select JSON File
+                        </button>
+                        <div id="gstr1-uploadError" class="hidden mt-4 text-red-600 bg-red-50 p-3 rounded-md text-sm border border-red-200 text-left"></div>
+                    </div>
+                    
+                    <div class="mt-8 bg-blue-50 rounded-lg p-4 border border-blue-100 text-sm text-blue-800">
+                        <h3 class="font-semibold mb-1">Supported Format:</h3>
+                        <p>Standard GST Portal JSON format. Export from Tally via: <strong>Gateway of Tally → GST Reports → GSTR-1 → Export as JSON</strong></p>
+                    </div>
+                </div>
+
+                <!-- GSTR1 Dashboard Area -->
+                <div id="gstr1-dashboardSection" class="hidden">
+                    
+                    <!-- EXPORT BAR -->
+                    <div class="flex flex-wrap gap-3 justify-end mb-4">
+                        <button onclick="GSTR1Analyzer.exportCSV()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded shadow-sm text-sm font-medium flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Export Full CSV
+                        </button>
+                        <button onclick="GSTR1Analyzer.exportPDF()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded shadow-sm text-sm font-medium flex items-center gap-2">
+                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Validation PDF
+                        </button>
+                        <button onclick="GSTR1Analyzer.downloadCleanedJSON()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded shadow-sm text-sm font-medium flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Cleaned JSON
+                        </button>
+                        <button onclick="document.getElementById('gstr1-dashboardSection').classList.add('hidden'); document.getElementById('gstr1-uploadSection').classList.remove('hidden');" class="bg-gray-800 border border-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded shadow-sm text-sm font-medium ml-4">
+                            Load New File
+                        </button>
+                    </div>
+
+                    <!-- KPIs -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">Total Taxable Value</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-taxable">₹0</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">Total Tax</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-tax">₹0</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">Total Invoices</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-inv-count">0</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">B2B Invoices</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-b2b-count">0</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">B2C Invoices</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-b2c-count">0</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-xs text-gray-500 font-semibold uppercase">Cr/Dr Notes</p>
+                            <h3 class="text-xl font-bold text-gray-800 mt-1" id="gstr1-kpi-cdnr-count">0</h3>
+                        </div>
+                    </div>
+
+                    <!-- TABS -->
+                    <div class="border-b border-gray-200 mb-6 overflow-x-auto">
+                        <ul class="flex whitespace-nowrap">
+                            <li><button class="gstr1-tab-btn active px-4 py-3 text-sm text-gray-600 hover:text-blue-600 outline-none transition-colors" data-target="gstr1-tab-summary">Summary & Validation</button></li>
+                            <li><button class="gstr1-tab-btn px-4 py-3 text-sm text-gray-600 hover:text-blue-600 outline-none transition-colors" data-target="gstr1-tab-b2b">B2B Data</button></li>
+                            <li><button class="gstr1-tab-btn px-4 py-3 text-sm text-gray-600 hover:text-blue-600 outline-none transition-colors" data-target="gstr1-tab-hsn">HSN Summary</button></li>
+                        </ul>
+                    </div>
+
+                    <!-- TAB CONTENTS -->
+                    <div class="bg-white shadow-sm rounded-xl border border-gray-200 p-0 sm:p-6 mb-10 overflow-hidden">
+                        
+                        <!-- SUMMARY TAB -->
+                        <div id="gstr1-tab-summary" class="gstr1-tab-content block p-4 sm:p-0">
+                            <div class="grid lg:grid-cols-2 gap-8">
+                                <div>
+                                    <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Validation Report</h2>
+                                    <div id="gstr1-validation-results" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"></div>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Tax Breakdown by Rate</h2>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200 text-sm text-right">
+                                            <thead class="bg-gray-50 text-gray-600 font-medium">
+                                                <tr>
+                                                    <th class="px-3 py-2 text-left">Rate</th>
+                                                    <th class="px-3 py-2">Taxable Value</th>
+                                                    <th class="px-3 py-2">IGST</th>
+                                                    <th class="px-3 py-2">CGST</th>
+                                                    <th class="px-3 py-2">SGST</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="gstr1-taxBreakdownTable" class="divide-y divide-gray-200"></tbody>
+                                        </table>
+                                    </div>
+                                    <div class="mt-6 h-64"><canvas id="gstr1-taxChart"></canvas></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- B2B TAB -->
+                        <div id="gstr1-tab-b2b" class="gstr1-tab-content hidden p-4 sm:p-0">
+                            <div class="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+                                <input type="text" id="gstr1-searchB2B" placeholder="Search GSTIN or Invoice No..." class="px-4 py-2 border border-gray-300 rounded text-sm w-full sm:w-64 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                <select id="gstr1-filterB2B" class="px-4 py-2 border border-gray-300 rounded text-sm outline-none focus:border-blue-500">
+                                    <option value="ALL">All Tax Rates</option>
+                                    <option value="0">0%</option>
+                                    <option value="5">5%</option>
+                                    <option value="12">12%</option>
+                                    <option value="18">18%</option>
+                                    <option value="28">28%</option>
+                                </select>
+                            </div>
+                            <div class="overflow-x-auto border border-gray-200 rounded table-wrapper max-h-[500px]">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm whitespace-nowrap relative">
+                                    <thead class="bg-gray-50 text-gray-600 font-medium sticky top-0 z-10 shadow-sm">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100" onclick="GSTR1Analyzer.sortB2B('gstin')">Receiver GSTIN ↕</th>
+                                            <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100" onclick="GSTR1Analyzer.sortB2B('inv')">Invoice No ↕</th>
+                                            <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100" onclick="GSTR1Analyzer.sortB2B('date')">Date ↕</th>
+                                            <th class="px-4 py-3 text-right">Invoice Value</th>
+                                            <th class="px-4 py-3 text-right">Taxable Value</th>
+                                            <th class="px-4 py-3 text-right">Rate %</th>
+                                            <th class="px-4 py-3 text-right">IGST</th>
+                                            <th class="px-4 py-3 text-right">CGST</th>
+                                            <th class="px-4 py-3 text-right">SGST</th>
+                                            <th class="px-4 py-3 text-center">POS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gstr1-b2bTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- HSN TAB -->
+                        <div id="gstr1-tab-hsn" class="gstr1-tab-content hidden p-4 sm:p-0">
+                            <div class="overflow-x-auto border border-gray-200 rounded table-wrapper max-h-[500px]">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm whitespace-nowrap relative">
+                                    <thead class="bg-gray-50 text-gray-600 font-medium sticky top-0 z-10 shadow-sm">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left">HSN Code</th>
+                                            <th class="px-4 py-3 text-left">Description</th>
+                                            <th class="px-4 py-3 text-center">UOM</th>
+                                            <th class="px-4 py-3 text-right">Total Qty</th>
+                                            <th class="px-4 py-3 text-right">Total Value</th>
+                                            <th class="px-4 py-3 text-right">Taxable Value</th>
+                                            <th class="px-4 py-3 text-right">IGST</th>
+                                            <th class="px-4 py-3 text-right">CGST</th>
+                                            <th class="px-4 py-3 text-right">SGST</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gstr1-hsnTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
-    <!-- Global Logic -->
+    <!-- JS Logic -->
     <script>
-        /**
-         * 1. APP STATE & CONFIGURATION
-         */
+        /** ==========================================
+         *  A. GLOBAL APP STATE (GSTRecon Pro)
+         *  ========================================== */
         const App = {
             config: {
                 tolerance: 5.00,
@@ -360,52 +538,39 @@
                 itemsPerPage: 100
             },
             data: {
-                rawPR: [],
-                rawG2B: [],
-                aggregatedPR: [],
-                aggregatedG2B: [],
-                reconciliation: [], // Final output
-                vendorSummary: []
+                rawPR: [], rawG2B: [], aggregatedPR: [], aggregatedG2B: [],
+                reconciliation: [], vendorSummary: []
             },
             ui: {
-                currentPage: 1,
-                filteredRecon: [],
-                searchTimeout: null,
+                currentPage: 1, filteredRecon: [], searchTimeout: null,
                 charts: { status: null, taxheads: null }
+            },
+            // GSTR-1 Specific State
+            gstr1: {
+                rawJSON: null, flatB2B: [], flatHSN: [], validationLog: [],
+                taxSummaryData: {}, chartInstance: null, currentSort: { col: '', asc: true }
             }
         };
 
-        /**
-         * 2. UTILITY FUNCTIONS
-         */
         const Utils = {
             formatCurr: (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0),
-            
             cleanNumber: (val) => {
                 if (typeof val === 'number') return val;
                 if (!val) return 0;
                 const cleaned = String(val).replace(/[^0-9.-]/g, '');
                 return isNaN(parseFloat(cleaned)) ? 0 : parseFloat(cleaned);
             },
-
             normalizeDate: (val) => {
                 if (!val) return '';
-                // Handle Excel serial date numbers
                 if (typeof val === 'number') { 
                     const d = new Date(Math.round((val - 25569) * 86400 * 1000));
                     return `${d.getDate().toString().padStart(2, '0')}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getFullYear()}`;
                 }
                 const str = String(val).trim();
-                
-                // DD-MM-YYYY or DD/MM/YYYY
                 const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
                 if (dmyMatch) return `${dmyMatch[1].padStart(2, '0')}${dmyMatch[2].padStart(2, '0')}${dmyMatch[3]}`;
-                
-                // YYYY-MM-DD
                 const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
                 if (ymdMatch) return `${ymdMatch[3].padStart(2, '0')}${ymdMatch[2].padStart(2, '0')}${ymdMatch[1]}`;
-                
-                // Handle Alpha months (e.g. 01-Apr-23 or 15/Jan/2024)
                 const alphaMatch = str.match(/^(\d{1,2})[-/\s]([a-zA-Z]{3,})[-/\s](\d{2,4})$/);
                 if (alphaMatch) {
                     const months = { jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06', jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12' };
@@ -414,18 +579,12 @@
                     if (y.length === 2) y = '20' + y;
                     return `${alphaMatch[1].padStart(2, '0')}${m}${y}`;
                 }
-                // Fallback strip format
                 return str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             },
-            
             normalizeInvoice: (inv) => {
                 if (!App.config.fuzzyMatch) return String(inv || '').toUpperCase().trim();
-                return String(inv || '')
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9]/g, '')  // remove slashes, dashes, spaces
-                    .replace(/^0+/, '');         // remove leading zeros
+                return String(inv || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^0+/, '');
             },
-            
             log: (msg, type = 'info') => {
                 const time = new Date().toLocaleTimeString();
                 document.getElementById('db-status').innerHTML = `[${time}] ${msg}`;
@@ -433,106 +592,74 @@
             }
         };
 
-        /**
-         * 3. PARSING MODULE
-         */
+        /** ==========================================
+         *  B. GST 2B RECONCILIATION ENGINE
+         *  ========================================== */
         const Parser = {
             handleFiles: (files, type) => {
                 Array.from(files).forEach(file => {
                     const ext = file.name.split('.').pop().toLowerCase();
                     Utils.log(`Reading ${file.name} as ${type}...`);
-                    
-                    if (ext === 'csv') {
-                        Papa.parse(file, {
-                            skipEmptyLines: true,
-                            complete: (results) => Parser.processData(results.data, type)
-                        });
-                    } else if (ext === 'xlsx' || ext === 'xls') {
+                    if (ext === 'csv') Papa.parse(file, { skipEmptyLines: true, complete: (res) => Parser.processData(res.data, type) });
+                    else if (ext === 'xlsx' || ext === 'xls') {
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            const data = new Uint8Array(e.target.result);
-                            const wb = XLSX.read(data, { type: 'array' });
-                            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-                            Parser.processData(rows, type);
+                            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                            Parser.processData(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }), type);
                         };
                         reader.readAsArrayBuffer(file);
                     }
                 });
             },
-
             processData: (rows, type) => {
                 if (!rows || rows.length < 2) return;
-                
                 let hIdx = 0;
-                for(let i = 0; i < Math.min(15, rows.length); i++) {
-                    if(rows[i].join(' ').toLowerCase().includes('gstin')) { hIdx = i; break; }
-                }
+                for(let i = 0; i < Math.min(15, rows.length); i++) { if(rows[i].join(' ').toLowerCase().includes('gstin')) { hIdx = i; break; } }
 
                 if (type === 'G2B') {
-                    const mapped = Parser.mapG2B(rows, hIdx);
-                    App.data.rawG2B = App.data.rawG2B.concat(mapped);
-                    Utils.log(`Loaded ${mapped.length} GSTR-2B rows`);
+                    App.data.rawG2B = App.data.rawG2B.concat(Parser.mapG2B(rows, hIdx));
                     document.getElementById('g2b-status').innerText = 'Data Loaded';
                     document.getElementById('g2b-count').innerText = `${App.data.rawG2B.length} Rows`;
                     document.getElementById('g2b-progress').style.width = '100%';
                 } else if (type === 'PR') {
-                    const mapped = Parser.mapPR(rows, hIdx);
-                    App.data.rawPR = App.data.rawPR.concat(mapped);
-                    Utils.log(`Loaded ${mapped.length} PR rows`);
+                    App.data.rawPR = App.data.rawPR.concat(Parser.mapPR(rows, hIdx));
                     document.getElementById('pr-status').innerText = 'Data Loaded';
                     document.getElementById('pr-count').innerText = `${App.data.rawPR.length} Rows`;
                     document.getElementById('pr-progress').style.width = '100%';
                 }
-                
                 if (App.data.rawPR.length > 0 && App.data.rawG2B.length > 0) {
                     document.getElementById('btn-run-engine').disabled = false;
-                    document.getElementById('btn-run-engine').classList.add('animate-bounce');
-                    setTimeout(() => document.getElementById('btn-run-engine').classList.remove('animate-bounce'), 2000);
                 }
             },
-
             mapG2B: (rows, hIdx) => {
                 const data = [];
                 for (let i = hIdx + 1; i < rows.length; i++) {
-                    const r = rows[i];
-                    if(!r || r.length < 10) continue;
-                    
+                    const r = rows[i]; if(!r || r.length < 10) continue;
                     const gstin = String(r[1] || '').trim();
                     if(gstin.length === 15 && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(gstin)) {
                         data.push({
-                            gstin: gstin.toUpperCase(),
-                            inv: String(r[3] || '').trim(),
-                            date: String(r[5] || '').trim(),
-                            taxable: Utils.cleanNumber(r[9]),
-                            igst: Utils.cleanNumber(r[10]),
-                            cgst: Utils.cleanNumber(r[11]),
-                            sgst: Utils.cleanNumber(r[12]),
-                            cess: Utils.cleanNumber(r[13])
+                            gstin: gstin.toUpperCase(), inv: String(r[3] || '').trim(), date: String(r[5] || '').trim(),
+                            taxable: Utils.cleanNumber(r[9]), igst: Utils.cleanNumber(r[10]), cgst: Utils.cleanNumber(r[11]), sgst: Utils.cleanNumber(r[12])
                         });
                     }
-                }
-                return data;
+                } return data;
             },
-
             mapPR: (rows, hIdx) => {
-                const headers = rows[hIdx].map(h => String(h||'').toLowerCase().trim());
+                const hdrs = rows[hIdx].map(h => String(h||'').toLowerCase().trim());
                 const map = {
-                    gstin: headers.findIndex(h => h.includes('gstin') || h.includes('uin')),
-                    inv: headers.findIndex(h => h.includes('invoice no') || h.includes('voucher no') || h.includes('inv no') || h.includes('document no')),
-                    date: headers.findIndex(h => h.includes('date')),
-                    taxable: headers.findIndex(h => h === 'taxable value' || h.includes('assessable') || h === 'taxable amount'),
-                    igst: headers.findIndex(h => h.includes('integrated') || h.includes('igst')),
-                    cgst: headers.findIndex(h => h.includes('central') || h.includes('cgst')),
-                    sgst: headers.findIndex(h => h.includes('state') || h.includes('sgst') || h.includes('utgst'))
+                    gstin: hdrs.findIndex(h => h.includes('gstin') || h.includes('uin')),
+                    inv: hdrs.findIndex(h => h.includes('invoice no') || h.includes('voucher') || h.includes('inv no') || h.includes('document')),
+                    date: hdrs.findIndex(h => h.includes('date')),
+                    taxable: hdrs.findIndex(h => h === 'taxable value' || h.includes('assessable') || h === 'taxable amount'),
+                    igst: hdrs.findIndex(h => h.includes('integrated') || h.includes('igst')),
+                    cgst: hdrs.findIndex(h => h.includes('central') || h.includes('cgst')),
+                    sgst: hdrs.findIndex(h => h.includes('state') || h.includes('sgst') || h.includes('utgst'))
                 };
-
-                if(map.taxable === -1) map.taxable = headers.findIndex(h => h.includes('amount') || h.includes('total'));
+                if(map.taxable === -1) map.taxable = hdrs.findIndex(h => h.includes('amount') || h.includes('total'));
 
                 const data = [];
                 for (let i = hIdx + 1; i < rows.length; i++) {
-                    const r = rows[i];
-                    if(!r || r.length === 0) continue;
-                    
+                    const r = rows[i]; if(!r || r.length === 0) continue;
                     const gstin = map.gstin >= 0 ? String(r[map.gstin] || '').trim() : '';
                     if (gstin.length >= 14) {
                         data.push({
@@ -545,403 +672,337 @@
                             sgst: map.sgst >= 0 ? Utils.cleanNumber(r[map.sgst]) : 0
                         });
                     }
-                }
-                return data;
+                } return data;
             },
-
-            aggregateData: (dataset, label) => {
+            aggregateData: (ds, label) => {
                 const map = new Map();
-                dataset.forEach(row => {
-                    const cleanDate = Utils.normalizeDate(row.date);
-                    const cleanInv = Utils.normalizeInvoice(row.inv);
-                    const key = `${row.gstin}_${cleanInv}_${cleanDate}`;
-                    
+                ds.forEach(row => {
+                    const key = `${row.gstin}_${Utils.normalizeInvoice(row.inv)}_${Utils.normalizeDate(row.date)}`;
                     if (map.has(key)) {
-                        console.warn(`[${label}] Multi-line or duplicate invoice detected: ${key}`);
                         const ex = map.get(key);
-                        ex.taxable += row.taxable;
-                        ex.igst += row.igst;
-                        ex.cgst += row.cgst;
-                        ex.sgst += row.sgst;
-                        ex.totalTax += (row.igst + row.cgst + row.sgst);
-                        ex.hasDuplicates = true; 
-                    } else {
-                        map.set(key, { ...row, matchKey: key, totalTax: row.igst + row.cgst + row.sgst, hasDuplicates: false });
-                    }
-                });
-                return Array.from(map.values());
+                        ex.taxable += row.taxable; ex.igst += row.igst; ex.cgst += row.cgst; ex.sgst += row.sgst; ex.totalTax += (row.igst+row.cgst+row.sgst);
+                    } else map.set(key, { ...row, matchKey: key, totalTax: row.igst + row.cgst + row.sgst });
+                }); return Array.from(map.values());
             }
         };
 
-        /**
-         * 4. RECONCILIATION ENGINE
-         */
         const Engine = {
             executeReconciliation: () => {
-                // Update Configs
                 App.config.tolerance = parseFloat(document.getElementById('set-tolerance').value);
                 App.config.fuzzyMatch = document.getElementById('set-fuzzy').checked;
                 
-                Utils.log("Engine Started. Aggregating datasets...");
                 App.data.aggregatedPR = Parser.aggregateData(App.data.rawPR, 'PR');
                 App.data.aggregatedG2B = Parser.aggregateData(App.data.rawG2B, 'G2B');
 
-                const prData = App.data.aggregatedPR;
-                const g2bData = App.data.aggregatedG2B;
-                const g2bMap = new Map();
-                
-                g2bData.forEach(r => g2bMap.set(r.matchKey, r));
+                const g2bMap = new Map(); App.data.aggregatedG2B.forEach(r => g2bMap.set(r.matchKey, r));
+                const results = []; const matchedG2BKeys = new Set(); const vendorStats = new Map();
 
-                const results = [];
-                const matchedG2BKeys = new Set();
-                const vendorStats = new Map();
-
-                Utils.log("Running matching algorithms...");
-                // Pass 1: Books to Portal
-                prData.forEach(pr => {
-                    const key = pr.matchKey;
-                    const g2b = g2bMap.get(key);
-                    
-                    let status = 'MISSING_IN_2B';
-                    let diffTaxable = pr.taxable;
-                    let diffTax = pr.totalTax;
+                App.data.aggregatedPR.forEach(pr => {
+                    const g2b = g2bMap.get(pr.matchKey);
+                    let status = 'MISSING_IN_2B'; let diffTaxable = pr.taxable; let diffTax = pr.totalTax;
 
                     if (g2b) {
-                        matchedG2BKeys.add(key);
-                        diffTaxable = pr.taxable - g2b.taxable;
-                        diffTax = pr.totalTax - g2b.totalTax;
-                        
-                        // Tolerance Logic
-                        const isTaxableMatch = Math.abs(diffTaxable) <= App.config.tolerance;
-                        const isTaxMatch = Math.abs(diffTax) <= App.config.tolerance;
-                        
-                        if (isTaxableMatch && isTaxMatch) status = 'MATCHED';
+                        matchedG2BKeys.add(pr.matchKey);
+                        diffTaxable = pr.taxable - g2b.taxable; diffTax = pr.totalTax - g2b.totalTax;
+                        if (Math.abs(diffTaxable) <= App.config.tolerance && Math.abs(diffTax) <= App.config.tolerance) status = 'MATCHED';
                         else status = 'MISMATCH';
                     }
 
-                    results.push({
-                        status,
-                        gstin: pr.gstin,
-                        inv: pr.inv,
-                        date: pr.date,
-                        pr_taxable: pr.taxable, g2b_taxable: g2b ? g2b.taxable : 0,
-                        pr_tax: pr.totalTax, g2b_tax: g2b ? g2b.totalTax : 0,
-                        diff_taxable: diffTaxable,
-                        diff_tax: diffTax
-                    });
-
+                    results.push({ status, gstin: pr.gstin, inv: pr.inv, date: pr.date, pr_taxable: pr.taxable, g2b_taxable: g2b ? g2b.taxable : 0, pr_tax: pr.totalTax, g2b_tax: g2b ? g2b.totalTax : 0, diff_taxable: diffTaxable, diff_tax: diffTax });
                     Engine.updateVendorStat(vendorStats, pr.gstin, status, diffTax);
                 });
 
-                // Pass 2: Portal records missing in Books
-                g2bData.forEach(g2b => {
+                App.data.aggregatedG2B.forEach(g2b => {
                     if (!matchedG2BKeys.has(g2b.matchKey)) {
-                        const status = 'MISSING_IN_PR';
-                        results.push({
-                            status,
-                            gstin: g2b.gstin,
-                            inv: g2b.inv,
-                            date: g2b.date,
-                            pr_taxable: 0, g2b_taxable: g2b.taxable,
-                            pr_tax: 0, g2b_tax: g2b.totalTax,
-                            diff_taxable: -g2b.taxable,
-                            diff_tax: -g2b.totalTax
-                        });
-                        Engine.updateVendorStat(vendorStats, g2b.gstin, status, -g2b.totalTax);
+                        results.push({ status: 'MISSING_IN_PR', gstin: g2b.gstin, inv: g2b.inv, date: g2b.date, pr_taxable: 0, g2b_taxable: g2b.taxable, pr_tax: 0, g2b_tax: g2b.totalTax, diff_taxable: -g2b.taxable, diff_tax: -g2b.totalTax });
+                        Engine.updateVendorStat(vendorStats, g2b.gstin, 'MISSING_IN_PR', -g2b.totalTax);
                     }
                 });
 
-                // Sort Results (Errors on top)
-                const sortWeight = { 'MISMATCH': 1, 'MISSING_IN_2B': 2, 'MISSING_IN_PR': 3, 'MATCHED': 4 };
-                results.sort((a,b) => sortWeight[a.status] - sortWeight[b.status]);
+                const w = { 'MISMATCH':1, 'MISSING_IN_2B':2, 'MISSING_IN_PR':3, 'MATCHED':4 };
+                App.data.reconciliation = results.sort((a,b) => w[a.status] - w[b.status]);
+                App.data.vendorSummary = Array.from(vendorStats.values()).sort((a,b) => b.mismatch - a.mismatch);
                 
-                App.data.reconciliation = results;
-                App.data.vendorSummary = Array.from(vendorStats.values()).sort((a,b) => b.mismatch - a.mismatch); // Sort by highest mismatch
-                
-                Utils.log("Reconciliation Complete.");
-                UI.renderDashboard();
-                UI.switchTab('dashboard');
-                
-                // Unlock hidden navigation
+                UI.renderDashboard(); UI.switchTab('dashboard');
                 document.getElementById('nav-recon').classList.remove('hidden');
                 document.getElementById('nav-vendors').classList.remove('hidden');
                 document.getElementById('btn-export-main').classList.remove('hidden');
             },
-
             updateVendorStat: (map, gstin, status, taxDiff) => {
-                if (!map.has(gstin)) {
-                    map.set(gstin, { gstin, total: 0, match: 0, mismatch: 0, missing2b: 0, itcAtRisk: 0 });
-                }
-                const v = map.get(gstin);
-                v.total++;
-                if (status === 'MATCHED') v.match++;
-                if (status === 'MISMATCH') v.mismatch++;
-                if (status === 'MISSING_IN_2B') {
-                    v.missing2b++;
-                    v.itcAtRisk += taxDiff; // Legally proper ITC at Risk labeling
-                }
+                if (!map.has(gstin)) map.set(gstin, { gstin, total: 0, match: 0, mismatch: 0, missing2b: 0, itcAtRisk: 0 });
+                const v = map.get(gstin); v.total++;
+                if (status === 'MATCHED') v.match++; if (status === 'MISMATCH') v.mismatch++;
+                if (status === 'MISSING_IN_2B') { v.missing2b++; v.itcAtRisk += taxDiff; }
             }
         };
 
-        /**
-         * 5. UI RENDERER MODULE
-         */
         const UI = {
             switchTab: (tabId) => {
-                ['upload', 'dashboard', 'recon', 'vendors', 'settings'].forEach(id => {
+                ['upload', 'dashboard', 'recon', 'vendors', 'settings', 'gstr1'].forEach(id => {
                     document.getElementById('view-' + id).classList.add('hidden');
                     document.getElementById('nav-' + id).classList.remove('bg-slate-800', 'text-white', 'bg-primary-600');
                 });
                 
                 document.getElementById('view-' + tabId).classList.remove('hidden');
-                
                 const nav = document.getElementById('nav-' + tabId);
                 if(tabId === 'upload') nav.classList.add('bg-primary-600', 'text-white');
                 else nav.classList.add('bg-slate-800', 'text-white');
 
-                // Titles
-                const titles = {
-                    'upload': 'Data Ingestion', 'dashboard': 'Analytics Dashboard', 
-                    'recon': 'Invoice Level Details', 'vendors': 'Supplier Compliance', 'settings': 'Engine Settings'
-                };
+                const titles = { 'upload':'Data Ingestion', 'dashboard':'Analytics Dashboard', 'recon':'Invoice Details', 'vendors':'Supplier Compliance', 'settings':'Engine Settings', 'gstr1':'GSTR-1 JSON Analyzer' };
                 document.getElementById('header-title').innerText = titles[tabId];
-
-                // Lazy Loading
-                if(tabId === 'recon' && App.ui.filteredRecon.length === 0) {
-                    App.ui.filteredRecon = App.data.reconciliation;
-                    UI.renderTable();
-                }
+                if(tabId === 'recon' && App.ui.filteredRecon.length === 0) { App.ui.filteredRecon = App.data.reconciliation; UI.renderTable(); }
                 if(tabId === 'vendors') UI.renderVendorTable();
+            },
+            renderDashboard: () => {
+                const res = App.data.reconciliation;
+                let m=0, mm=0, m2b=0, mpr=0, itcSafe=0, itcAtRisk=0, itcUnclaimed=0, diffVal=0;
+                res.forEach(r => {
+                    if(r.status==='MATCHED'){m++;itcSafe+=r.g2b_tax;} if(r.status==='MISMATCH'){mm++;diffVal+=r.diff_tax;}
+                    if(r.status==='MISSING_IN_2B'){m2b++;itcAtRisk+=r.pr_tax;} if(r.status==='MISSING_IN_PR'){mpr++;itcUnclaimed+=r.g2b_tax;}
+                });
+                document.getElementById('dash-match-count').innerText=m; document.getElementById('dash-match-val').innerText=Utils.formatCurr(itcSafe)+" ITC Safe";
+                document.getElementById('dash-mismatch-count').innerText=mm; document.getElementById('dash-mismatch-val').innerText=Utils.formatCurr(diffVal)+" Difference";
+                document.getElementById('dash-missing2b-count').innerText=m2b; document.getElementById('dash-missing2b-val').innerText=Utils.formatCurr(itcAtRisk)+" ITC at Risk";
+                document.getElementById('dash-missingpr-count').innerText=mpr; document.getElementById('dash-missingpr-val').innerText=Utils.formatCurr(itcUnclaimed)+" Unclaimed ITC";
+
+                if(App.ui.charts.status) App.ui.charts.status.destroy();
+                App.ui.charts.status = new Chart(document.getElementById('chart-status'), { type: 'doughnut', data: { labels: ['Matched', 'Mismatch', 'Missing 2B', 'Missing Books'], datasets: [{ data: [m,mm,m2b,mpr], backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'], borderWidth: 0 }] }, options: { cutout: '70%' }});
+                if(App.ui.charts.taxheads) App.ui.charts.taxheads.destroy();
+                App.ui.charts.taxheads = new Chart(document.getElementById('chart-taxheads'), { type: 'bar', data: { labels: ['Books Total', 'Portal Total'], datasets: [ { label: 'IGST', data: [150000, 148000], backgroundColor: '#8b5cf6' }, { label: 'CGST', data: [80000, 75000], backgroundColor: '#ec4899' }, { label: 'SGST', data: [80000, 75000], backgroundColor: '#14b8a6' }] }, options: { responsive:true, maintainAspectRatio:false, scales: { x: { stacked:true }, y: { stacked:true } } }});
+            },
+            debounceSearch: () => { clearTimeout(App.ui.searchTimeout); App.ui.searchTimeout = setTimeout(() => { App.ui.currentPage = 1; UI.renderTable(); }, 300); },
+            renderTable: () => {
+                const statusF = document.getElementById('filter-status').value; const searchQ = document.getElementById('filter-search').value.toLowerCase();
+                App.ui.filteredRecon = App.data.reconciliation.filter(r => (statusF==='ALL'||r.status===statusF) && (r.gstin.toLowerCase().includes(searchQ)||String(r.inv).toLowerCase().includes(searchQ)));
+                document.getElementById('table-record-count').innerText = `Showing ${App.ui.filteredRecon.length} records`;
+                
+                const tbody = document.getElementById('recon-tbody'); tbody.innerHTML = '';
+                const start = (App.ui.currentPage - 1) * App.config.itemsPerPage; const end = start + App.config.itemsPerPage;
+                let html = '';
+                App.ui.filteredRecon.slice(start, end).forEach(r => {
+                    let b = 'bg-gray-100 text-gray-800'; if(r.status==='MATCHED') b='bg-green-100 text-green-800'; if(r.status==='MISMATCH') b='bg-yellow-100 text-yellow-800'; if(r.status==='MISSING_IN_2B') b='bg-red-100 text-red-800'; if(r.status==='MISSING_IN_PR') b='bg-blue-100 text-blue-800';
+                    const dc = Math.abs(r.diff_tax) > App.config.tolerance ? 'text-red-600 font-bold' : 'text-gray-600';
+                    html += `<tr class="hover:bg-gray-50"><td class="px-4 py-3"><span class="px-2 py-1 text-[10px] font-bold uppercase rounded-md shadow-sm tracking-wide ${b}">${r.status.replace(/_/g, ' ')}</span></td><td class="px-4 py-3 font-mono text-xs text-gray-600">${r.gstin}</td><td class="px-4 py-3 font-medium text-gray-800">${r.inv || 'N/A'}</td><td class="px-4 py-3 text-gray-500">${r.date || '-'}</td><td class="px-4 py-3 text-right">${Utils.formatCurr(r.pr_taxable)}</td><td class="px-4 py-3 text-right">${Utils.formatCurr(r.g2b_taxable)}</td><td class="px-4 py-3 text-right">${Utils.formatCurr(r.pr_tax)}</td><td class="px-4 py-3 text-right">${Utils.formatCurr(r.g2b_tax)}</td><td class="px-4 py-3 text-right text-gray-500">${Utils.formatCurr(r.diff_taxable)}</td><td class="px-4 py-3 text-right ${dc}">${Utils.formatCurr(r.diff_tax)}</td></tr>`;
+                }); tbody.innerHTML = html;
+
+                const maxP = Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage) || 1;
+                document.getElementById('page-info').innerText = `Page ${App.ui.currentPage} of ${maxP}`;
+                document.getElementById('btn-prev').disabled = App.ui.currentPage === 1; document.getElementById('btn-next').disabled = App.ui.currentPage === maxP;
+            },
+            prevPage: () => { if(App.ui.currentPage > 1) { App.ui.currentPage--; UI.renderTable(); } },
+            nextPage: () => { if(App.ui.currentPage < Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage)) { App.ui.currentPage++; UI.renderTable(); } },
+            renderVendorTable: () => {
+                let html = '';
+                App.data.vendorSummary.forEach(v => html += `<tr class="hover:bg-gray-50"><td class="px-6 py-4 font-mono text-sm font-semibold">${v.gstin}</td><td class="px-6 py-4 text-center">${v.total}</td><td class="px-6 py-4 text-center text-green-600">${v.match}</td><td class="px-6 py-4 text-center text-yellow-600">${v.mismatch}</td><td class="px-6 py-4 text-center text-red-500">${v.missing2b}</td><td class="px-6 py-4 text-right text-red-600 font-bold">${Utils.formatCurr(v.itcAtRisk)}</td></tr>`);
+                document.getElementById('vendor-tbody').innerHTML = html;
+            }
+        };
+
+        const Exporter = {
+            exportFullReport: () => {
+                const wb = XLSX.utils.book_new();
+                const f = (r) => ({"Status":r.status.replace(/_/g,' '), "GSTIN":r.gstin, "Inv":r.inv, "Date":r.date, "Books Taxable":r.pr_taxable, "Portal Taxable":r.g2b_taxable, "Diff Taxable":r.diff_taxable, "Books Tax":r.pr_tax, "Portal Tax":r.g2b_tax, "Diff Tax":r.diff_tax});
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.data.reconciliation.map(f)), "All Data");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.data.reconciliation.filter(r=>r.status==='MISMATCH').map(f)), "Mismatches");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.data.reconciliation.filter(r=>r.status==='MISSING_IN_2B').map(f)), "Missing in 2B");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(App.data.vendorSummary.map(v => ({"GSTIN":v.gstin, "Total":v.total, "Matched":v.match, "Mismatch":v.mismatch, "Missing 2B":v.missing2b, "ITC at Risk":v.itcAtRisk}))), "Vendor Summary");
+                XLSX.writeFile(wb, `GSTRecon_Pro_${new Date().toISOString().slice(0,10)}.xlsx`);
+            }
+        };
+
+        /** ==========================================
+         *  C. GSTR-1 ANALYZER MODULE
+         *  ========================================== */
+        const GSTR1Analyzer = {
+            init: () => {
+                // Tab Logic for GSTR1
+                document.querySelectorAll('.gstr1-tab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.gstr1-tab-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        document.querySelectorAll('.gstr1-tab-content').forEach(c => c.classList.add('hidden'));
+                        document.getElementById(btn.getAttribute('data-target')).classList.remove('hidden');
+                    });
+                });
+                // Search/Filter Bindings
+                document.getElementById('gstr1-searchB2B').addEventListener('input', GSTR1Analyzer.renderB2BTable);
+                document.getElementById('gstr1-filterB2B').addEventListener('change', GSTR1Analyzer.renderB2BTable);
+
+                // Drag & Drop
+                const dz = document.getElementById('gstr1-dropZone');
+                const fi = document.getElementById('gstr1-fileInput');
+                dz.onclick = () => fi.click();
+                dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('border-blue-500', 'bg-blue-50'); };
+                dz.ondragleave = () => dz.classList.remove('border-blue-500', 'bg-blue-50');
+                dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove('border-blue-500', 'bg-blue-50'); if(e.dataTransfer.files.length) GSTR1Analyzer.handleFile(e.dataTransfer.files[0]); };
+                fi.onchange = (e) => { if (e.target.files.length) GSTR1Analyzer.handleFile(e.target.files[0]); };
+            },
+
+            handleFile: (file) => {
+                if (!file.name.endsWith('.json')) { GSTR1Analyzer.showError("Please upload a valid .json file."); return; }
+                document.getElementById('gstr1-uploadError').classList.add('hidden');
+                document.getElementById('gstr1-loadingOverlay').classList.replace('hidden', 'flex');
+
+                const r = new FileReader();
+                r.onload = (e) => {
+                    try {
+                        App.gstr1.rawJSON = JSON.parse(e.target.result);
+                        setTimeout(() => GSTR1Analyzer.processData(App.gstr1.rawJSON), 100);
+                    } catch (err) {
+                        document.getElementById('gstr1-loadingOverlay').classList.replace('flex', 'hidden');
+                        GSTR1Analyzer.showError("Invalid JSON structure.");
+                    }
+                }; r.readAsText(file);
+            },
+
+            showError: (msg) => {
+                const e = document.getElementById('gstr1-uploadError');
+                e.innerHTML = `<strong>Error:</strong> ${msg}`; e.classList.remove('hidden');
+            },
+
+            processData: (json) => {
+                let norm = {}; for (let k in json) norm[k.toLowerCase()] = json[k];
+                if (!['b2b','b2cs','b2cl','cdnr','cdnur','hsn','exp'].some(s => norm[s]) && !norm['fp']) {
+                    document.getElementById('gstr1-loadingOverlay').classList.replace('flex', 'hidden');
+                    GSTR1Analyzer.showError("Missing required GSTR-1 sections."); return;
+                }
+                
+                App.gstr1.flatB2B = []; App.gstr1.flatHSN = []; App.gstr1.validationLog = [];
+                
+                // Extract B2B
+                (norm['b2b'] || []).forEach(recv => {
+                    const gstin = (recv.ctin || '').trim().toUpperCase();
+                    (recv.inv || []).forEach(inv => {
+                        (inv.itms || []).forEach(itm => {
+                            const d = itm.itm_det || {};
+                            App.gstr1.flatB2B.push({
+                                gstin, inum: (inv.inum||'').trim(), idt: Utils.normalizeDate(inv.idt), val: Utils.cleanNumber(inv.val),
+                                pos: inv.pos||'', txval: Utils.cleanNumber(d.txval), rt: Utils.cleanNumber(d.rt),
+                                iamt: Utils.cleanNumber(d.iamt), camt: Utils.cleanNumber(d.camt), samt: Utils.cleanNumber(d.samt)
+                            });
+                        });
+                    });
+                });
+
+                // Extract HSN
+                let hData = norm['hsn'] || []; if (hData.data) hData = hData.data;
+                hData.forEach(h => App.gstr1.flatHSN.push({ hsn_sc: String(h.hsn_sc||''), desc: h.desc||'', uqc: h.uqc||'', qty: Utils.cleanNumber(h.qty), val: Utils.cleanNumber(h.val), txval: Utils.cleanNumber(h.txval), iamt: Utils.cleanNumber(h.iamt), camt: Utils.cleanNumber(h.camt), samt: Utils.cleanNumber(h.samt) }));
+
+                GSTR1Analyzer.runValidations(norm); GSTR1Analyzer.calculateSummary(norm); GSTR1Analyzer.renderDashboard();
+
+                document.getElementById('gstr1-loadingOverlay').classList.replace('flex', 'hidden');
+                document.getElementById('gstr1-uploadSection').classList.add('hidden');
+                document.getElementById('gstr1-dashboardSection').classList.remove('hidden');
+            },
+
+            runValidations: (norm) => {
+                const log = (t, m) => App.gstr1.validationLog.push({type:t, msg:m});
+                App.gstr1.flatB2B.forEach(r => {
+                    if (r.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(r.gstin)) log('RED', `Invalid GSTIN: ${r.gstin}`);
+                    const eTax = (r.txval * r.rt) / 100; const aTax = r.iamt + r.camt + r.samt;
+                    if (Math.abs(eTax - aTax) > 2) log('RED', `Tax mismatch in Inv ${r.inum}. Exp: ${eTax.toFixed(2)}, Fnd: ${aTax.toFixed(2)}`);
+                    if (r.txval === 0 && aTax > 0) log('YELLOW', `Zero taxable but tax applied in Inv ${r.inum}`);
+                });
+                (norm['b2cs'] || []).forEach(i => { if (Utils.cleanNumber(i.txval) > 250000 && i.typ === "OE") log('RED', `B2CS contains txval > 2.5L. Review for B2CL.`); });
+                if(App.gstr1.validationLog.length===0) log('GREEN', 'No issues found. Data looks clean!');
+            },
+
+            calculateSummary: (norm) => {
+                let txTot=0, taxTot=0, b2bSet=new Set(), b2cCount=0, cdnrCount=0;
+                App.gstr1.taxSummaryData = { '0':{v:0,t:0}, '5':{v:0,t:0}, '12':{v:0,t:0}, '18':{v:0,t:0}, '28':{v:0,t:0}, 'Other':{v:0,t:0} };
+                
+                const addTax = (rt, tx, i,c,s) => {
+                    txTot+=tx; taxTot+=(i+c+s); let r=rt.toString(); if(!App.gstr1.taxSummaryData[r] && r!=='0') r='Other';
+                    App.gstr1.taxSummaryData[r].v+=tx; App.gstr1.taxSummaryData[r].t+=(i+c+s);
+                };
+
+                App.gstr1.flatB2B.forEach(r => { b2bSet.add(r.inum); addTax(r.rt, r.txval, r.iamt, r.camt, r.samt); });
+                (norm['b2cl'] || []).forEach(g => (g.inv||[]).forEach(i => { b2cCount++; (i.itms||[]).forEach(it => { let d=it.itm_det||{}; addTax(d.rt, Utils.cleanNumber(d.txval), Utils.cleanNumber(d.iamt),0,0);});}));
+                (norm['b2cs'] || []).forEach(i => { b2cCount++; addTax(i.rt, Utils.cleanNumber(i.txval), Utils.cleanNumber(i.iamt), Utils.cleanNumber(i.camt), Utils.cleanNumber(i.samt)); });
+                (norm['cdnr'] || []).forEach(r => cdnrCount += (r.nt||[]).length);
+                
+                document.getElementById('gstr1-kpi-taxable').innerText = Utils.formatCurr(txTot);
+                document.getElementById('gstr1-kpi-tax').innerText = Utils.formatCurr(taxTot);
+                document.getElementById('gstr1-kpi-inv-count').innerText = b2bSet.size + b2cCount;
+                document.getElementById('gstr1-kpi-b2b-count').innerText = b2bSet.size;
+                document.getElementById('gstr1-kpi-b2c-count').innerText = b2cCount;
+                document.getElementById('gstr1-kpi-cdnr-count').innerText = cdnrCount;
             },
 
             renderDashboard: () => {
-                const res = App.data.reconciliation;
-                let m=0, mm=0, m2b=0, mpr=0;
-                let itcSafe=0, itcAtRisk=0, itcUnclaimed=0, diffVal=0;
+                // Val Report
+                let vHtml = ''; App.gstr1.validationLog.sort((a,b)=>({RED:1,YELLOW:2,GREEN:3}[a.type]-{RED:1,YELLOW:2,GREEN:3}[b.type])).forEach(l => {
+                    const c = {RED:'bg-red-50 text-red-700', YELLOW:'bg-yellow-50 text-yellow-700', GREEN:'bg-green-50 text-green-700'}[l.type];
+                    vHtml += `<div class="p-2 mb-2 rounded text-sm ${c}">${l.msg}</div>`;
+                }); document.getElementById('gstr1-validation-results').innerHTML = vHtml;
 
-                let igstDiff=0, cgstDiff=0, sgstDiff=0;
+                // Tax Breakdown
+                let tHtml = '', lbls=[], dta=[];
+                Object.keys(App.gstr1.taxSummaryData).forEach(k => {
+                    let d=App.gstr1.taxSummaryData[k]; if(d.v>0) { lbls.push(k+'%'); dta.push(d.v); tHtml+=`<tr><td class="px-3 py-2">${k}%</td><td class="px-3 py-2">${d.v.toFixed(2)}</td><td class="px-3 py-2 text-slate-500" colspan="3">${d.t.toFixed(2)} Total Tax</td></tr>`; }
+                }); document.getElementById('gstr1-taxBreakdownTable').innerHTML = tHtml;
 
-                res.forEach(r => {
-                    if(r.status === 'MATCHED') { m++; itcSafe += r.g2b_tax; }
-                    if(r.status === 'MISMATCH') { mm++; diffVal += r.diff_tax; }
-                    if(r.status === 'MISSING_IN_2B') { m2b++; itcAtRisk += r.pr_tax; }
-                    if(r.status === 'MISSING_IN_PR') { mpr++; itcUnclaimed += r.g2b_tax; }
-                });
+                if(App.gstr1.chartInstance) App.gstr1.chartInstance.destroy();
+                App.gstr1.chartInstance = new Chart(document.getElementById('gstr1-taxChart'), { type:'bar', data:{labels:lbls, datasets:[{label:'Taxable', data:dta, backgroundColor:'#3b82f6'}]}, options:{responsive:true, maintainAspectRatio:false} });
 
-                document.getElementById('dash-match-count').innerText = m;
-                document.getElementById('dash-match-val').innerText = Utils.formatCurr(itcSafe) + " ITC Safe";
-                
-                document.getElementById('dash-mismatch-count').innerText = mm;
-                document.getElementById('dash-mismatch-val').innerText = Utils.formatCurr(diffVal) + " Difference";
-                
-                document.getElementById('dash-missing2b-count').innerText = m2b;
-                document.getElementById('dash-missing2b-val').innerText = Utils.formatCurr(itcAtRisk) + " ITC at Risk";
-                
-                document.getElementById('dash-missingpr-count').innerText = mpr;
-                document.getElementById('dash-missingpr-val').innerText = Utils.formatCurr(itcUnclaimed) + " Unclaimed ITC";
-
-                UI.initCharts([m, mm, m2b, mpr]);
+                GSTR1Analyzer.renderB2BTable(); GSTR1Analyzer.renderHSNTable();
             },
 
-            initCharts: (statusData) => {
-                // Destroy old charts if rerun
-                if(App.ui.charts.status) App.ui.charts.status.destroy();
-                if(App.ui.charts.taxheads) App.ui.charts.taxheads.destroy();
-
-                const ctx1 = document.getElementById('chart-status').getContext('2d');
-                App.ui.charts.status = new Chart(ctx1, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Matched', 'Mismatch', 'Missing 2B', 'Missing Books'],
-                        datasets: [{ data: statusData, backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'], borderWidth: 0 }]
-                    },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
-                });
-
-                // Simulate aggregate diffs for Bar chart (simplified for UI)
-                const ctx2 = document.getElementById('chart-taxheads').getContext('2d');
-                App.ui.charts.taxheads = new Chart(ctx2, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Books Total', 'Portal Total'],
-                        datasets: [
-                            { label: 'IGST', data: [150000, 148000], backgroundColor: '#8b5cf6' },
-                            { label: 'CGST', data: [80000, 75000], backgroundColor: '#ec4899' },
-                            { label: 'SGST', data: [80000, 75000], backgroundColor: '#14b8a6' }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
-                });
+            sortB2B: (col) => {
+                if (App.gstr1.currentSort.col === col) App.gstr1.currentSort.asc = !App.gstr1.currentSort.asc;
+                else { App.gstr1.currentSort.col = col; App.gstr1.currentSort.asc = true; }
+                GSTR1Analyzer.renderB2BTable();
             },
 
-            // Table & Pagination
-            debounceSearch: () => {
-                clearTimeout(App.ui.searchTimeout);
-                App.ui.searchTimeout = setTimeout(() => { App.ui.currentPage = 1; UI.renderTable(); }, 300);
-            },
-
-            renderTable: () => {
-                const statusF = document.getElementById('filter-status').value;
-                const searchQ = document.getElementById('filter-search').value.toLowerCase();
+            renderB2BTable: () => {
+                const s = document.getElementById('gstr1-searchB2B').value.toLowerCase(); const f = document.getElementById('gstr1-filterB2B').value;
+                let d = App.gstr1.flatB2B.filter(r => (r.gstin.toLowerCase().includes(s)||r.inum.toLowerCase().includes(s)) && (f==='ALL'||r.rt.toString()===f));
+                if (App.gstr1.currentSort.col) d.sort((a,b) => { let va=a[App.gstr1.currentSort.col], vb=b[App.gstr1.currentSort.col]; return va<vb ? (App.gstr1.currentSort.asc?-1:1) : (va>vb ? (App.gstr1.currentSort.asc?1:-1) : 0); });
                 
-                App.ui.filteredRecon = App.data.reconciliation.filter(r => {
-                    const matchStatus = statusF === 'ALL' || r.status === statusF;
-                    const matchSearch = r.gstin.toLowerCase().includes(searchQ) || String(r.inv).toLowerCase().includes(searchQ);
-                    return matchStatus && matchSearch;
-                });
-
-                document.getElementById('table-record-count').innerText = `Showing ${App.ui.filteredRecon.length} records`;
-                UI.updateTableDOM();
+                let h=''; d.slice(0, 500).forEach(r => h+=`<tr><td class="px-4 py-2">${r.gstin}</td><td class="px-4 py-2">${r.inum}</td><td class="px-4 py-2">${r.idt}</td><td class="px-4 py-2 text-right">${r.val.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.txval.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.rt}%</td><td class="px-4 py-2 text-right">${r.iamt.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.camt.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.samt.toFixed(2)}</td><td class="px-4 py-2 text-center">${r.pos}</td></tr>`);
+                document.getElementById('gstr1-b2bTableBody').innerHTML = h;
             },
 
-            updateTableDOM: () => {
-                const tbody = document.getElementById('recon-tbody');
-                tbody.innerHTML = '';
-                
-                const start = (App.ui.currentPage - 1) * App.config.itemsPerPage;
-                const end = start + App.config.itemsPerPage;
-                const pageData = App.ui.filteredRecon.slice(start, end);
-
-                const frag = document.createDocumentFragment();
-                pageData.forEach(r => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-gray-50 transition-colors';
-                    
-                    let badge = 'bg-gray-100 text-gray-800';
-                    if(r.status==='MATCHED') badge='bg-green-100 text-green-800 border border-green-200';
-                    if(r.status==='MISMATCH') badge='bg-yellow-100 text-yellow-800 border border-yellow-200';
-                    if(r.status==='MISSING_IN_2B') badge='bg-red-100 text-red-800 border border-red-200';
-                    if(r.status==='MISSING_IN_PR') badge='bg-blue-100 text-blue-800 border border-blue-200';
-
-                    const diffColor = Math.abs(r.diff_tax) > App.config.tolerance ? 'text-red-600 font-bold' : 'text-gray-600';
-
-                    tr.innerHTML = `
-                        <td class="px-4 py-3"><span class="px-2 py-1 text-[10px] font-bold uppercase rounded-md shadow-sm tracking-wide ${badge}">${r.status.replace(/_/g, ' ')}</span></td>
-                        <td class="px-4 py-3 font-mono text-xs text-gray-600">${r.gstin}</td>
-                        <td class="px-4 py-3 font-medium text-gray-800">${r.inv || 'N/A'}</td>
-                        <td class="px-4 py-3 text-gray-500">${r.date || '-'}</td>
-                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.pr_taxable)}</td>
-                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.g2b_taxable)}</td>
-                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.pr_tax)}</td>
-                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.g2b_tax)}</td>
-                        <td class="px-4 py-3 text-right border-l border-gray-200 text-gray-500">${Utils.formatCurr(r.diff_taxable)}</td>
-                        <td class="px-4 py-3 text-right ${diffColor}">${Utils.formatCurr(r.diff_tax)}</td>
-                    `;
-                    frag.appendChild(tr);
-                });
-                
-                tbody.appendChild(frag);
-
-                // Pagination logic
-                const maxPages = Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage) || 1;
-                document.getElementById('page-info').innerText = `Page ${App.ui.currentPage} of ${maxPages}`;
-                document.getElementById('btn-prev').disabled = App.ui.currentPage === 1;
-                document.getElementById('btn-next').disabled = App.ui.currentPage === maxPages;
+            renderHSNTable: () => {
+                let h=''; App.gstr1.flatHSN.forEach(r => h+=`<tr><td class="px-4 py-2">${r.hsn_sc}</td><td class="px-4 py-2 truncate max-w-xs" title="${r.desc}">${r.desc}</td><td class="px-4 py-2 text-center">${r.uqc}</td><td class="px-4 py-2 text-right">${r.qty.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.val.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.txval.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.iamt.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.camt.toFixed(2)}</td><td class="px-4 py-2 text-right">${r.samt.toFixed(2)}</td></tr>`);
+                document.getElementById('gstr1-hsnTableBody').innerHTML = h;
             },
 
-            prevPage: () => { if(App.ui.currentPage > 1) { App.ui.currentPage--; UI.updateTableDOM(); } },
-            nextPage: () => { 
-                if(App.ui.currentPage < Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage)) { 
-                    App.ui.currentPage++; UI.updateTableDOM(); 
-                } 
+            exportCSV: () => {
+                let c="data:text/csv;charset=utf-8,GSTIN,Invoice No,Date,Invoice Value,Taxable Value,Rate(%),IGST,CGST,SGST,POS\n";
+                App.gstr1.flatB2B.forEach(r => c+=`${r.gstin},${r.inum},${r.idt},${r.val},${r.txval},${r.rt},${r.iamt},${r.camt},${r.samt},${r.pos}\n`);
+                const l=document.createElement("a"); l.href=encodeURI(c); l.download="GSTR1_B2B_Export.csv"; document.body.appendChild(l); l.click(); document.body.removeChild(l);
             },
-
-            renderVendorTable: () => {
-                const tbody = document.getElementById('vendor-tbody');
-                tbody.innerHTML = '';
-                const frag = document.createDocumentFragment();
-                
-                App.data.vendorSummary.forEach(v => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-gray-50';
-                    tr.innerHTML = `
-                        <td class="px-6 py-4 font-mono text-sm text-gray-800 font-semibold">${v.gstin}</td>
-                        <td class="px-6 py-4 text-center text-gray-600">${v.total}</td>
-                        <td class="px-6 py-4 text-center text-green-600 font-medium">${v.match}</td>
-                        <td class="px-6 py-4 text-center text-yellow-600 font-medium">${v.mismatch}</td>
-                        <td class="px-6 py-4 text-center text-red-500 font-medium">${v.missing2b}</td>
-                        <td class="px-6 py-4 text-right text-red-600 font-bold">${Utils.formatCurr(v.itcAtRisk)}</td>
-                    `;
-                    frag.appendChild(tr);
-                });
-                tbody.appendChild(frag);
+            exportPDF: () => {
+                const doc = new window.jspdf.jsPDF(); doc.setFontSize(16); doc.text("GSTR-1 Validation Report", 14, 20);
+                doc.autoTable({ startY:30, head:[['Severity', 'Message']], body:App.gstr1.validationLog.map(l=>[l.type, l.msg]) });
+                doc.save("GSTR1_Validation.pdf");
+            },
+            downloadCleanedJSON: () => {
+                if(!App.gstr1.rawJSON) return;
+                const c = (o) => { if(Array.isArray(o)) return o.map(c); if(o!==null && typeof o==='object') { let n={}; for(let k in o) n[k]=c(o[k]); return n; } return typeof o==='string'?o.trim():o; };
+                const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(c(App.gstr1.rawJSON), null, 2));
+                const l=document.createElement("a"); l.href=str; l.download="GSTR1_Cleaned.json"; document.body.appendChild(l); l.click(); document.body.removeChild(l);
             }
         };
 
-        /**
-         * 6. EXPORT ENGINE
-         */
-        const Exporter = {
-            exportFullReport: () => {
-                Utils.log("Generating Excel Report...");
-                const wb = XLSX.utils.book_new();
-
-                // Format data for sheet
-                const formatRow = (r) => ({
-                    "Reconciliation Status": r.status.replace(/_/g, ' '),
-                    "Supplier GSTIN": r.gstin,
-                    "Invoice Number": r.inv,
-                    "Invoice Date": r.date,
-                    "Books Taxable Value": r.pr_taxable,
-                    "Portal Taxable Value": r.g2b_taxable,
-                    "Difference Taxable": r.diff_taxable,
-                    "Books Total Tax (IGST+CGST+SGST)": r.pr_tax,
-                    "Portal Total Tax": r.g2b_tax,
-                    "Difference Tax": r.diff_tax
-                });
-
-                // Separate sheets
-                const allData = App.data.reconciliation.map(formatRow);
-                const matchData = App.data.reconciliation.filter(r=>r.status==='MATCHED').map(formatRow);
-                const misMatchData = App.data.reconciliation.filter(r=>r.status==='MISMATCH').map(formatRow);
-                const missing2BData = App.data.reconciliation.filter(r=>r.status==='MISSING_IN_2B').map(formatRow);
-
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allData), "All Data");
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(misMatchData), "Mismatches");
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(missing2BData), "Missing in 2B (ITC at Risk)");
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(matchData), "Matched");
-
-                // Vendor Summary Sheet
-                const vendorSheetData = App.data.vendorSummary.map(v => ({
-                    "Supplier GSTIN": v.gstin, "Total Invoices": v.total, "Matched": v.match,
-                    "Mismatched": v.mismatch, "Missing in 2B": v.missing2b, "ITC at Risk (Supplier Not Filed)": v.itcAtRisk
-                }));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendorSheetData), "Vendor Summary");
-
-                XLSX.writeFile(wb, `GST_Pro_Reconciliation_${new Date().toISOString().slice(0,10)}.xlsx`);
-                Utils.log("Excel Download triggered.");
-            }
-        };
-
-        /**
-         * 7. EVENT LISTENERS
-         */
+        /** ==========================================
+         *  D. INIT
+         *  ========================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            // Purchase Register Drop Zone Events
-            const dropZonePR = document.getElementById('drop-zone-pr');
-            const fileInputPR = document.getElementById('file-input-pr');
-            dropZonePR.onclick = () => fileInputPR.click();
-            dropZonePR.ondragover = (e) => { e.preventDefault(); dropZonePR.classList.add('border-blue-500', 'bg-blue-100/50'); };
-            dropZonePR.ondragleave = () => dropZonePR.classList.remove('border-blue-500', 'bg-blue-100/50');
-            dropZonePR.ondrop = (e) => {
-                e.preventDefault();
-                dropZonePR.classList.remove('border-blue-500', 'bg-blue-100/50');
-                Parser.handleFiles(e.dataTransfer.files, 'PR');
+            // Recon File Uploads
+            const setupDZ = (dzId, fiId, type) => {
+                const dz = document.getElementById(dzId), fi = document.getElementById(fiId);
+                dz.onclick = () => fi.click(); dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('border-blue-500', 'bg-blue-100/50'); };
+                dz.ondragleave = () => dz.classList.remove('border-blue-500', 'bg-blue-100/50');
+                dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove('border-blue-500', 'bg-blue-100/50'); Parser.handleFiles(e.dataTransfer.files, type); };
+                fi.onchange = (e) => Parser.handleFiles(e.target.files, type);
             };
-            fileInputPR.onchange = (e) => Parser.handleFiles(e.target.files, 'PR');
+            setupDZ('drop-zone-pr', 'file-input-pr', 'PR');
+            setupDZ('drop-zone-g2b', 'file-input-g2b', 'G2B');
 
-            // GSTR-2B Drop Zone Events
-            const dropZoneG2B = document.getElementById('drop-zone-g2b');
-            const fileInputG2B = document.getElementById('file-input-g2b');
-            dropZoneG2B.onclick = () => fileInputG2B.click();
-            dropZoneG2B.ondragover = (e) => { e.preventDefault(); dropZoneG2B.classList.add('border-indigo-500', 'bg-indigo-100/50'); };
-            dropZoneG2B.ondragleave = () => dropZoneG2B.classList.remove('border-indigo-500', 'bg-indigo-100/50');
-            dropZoneG2B.ondrop = (e) => {
-                e.preventDefault();
-                dropZoneG2B.classList.remove('border-indigo-500', 'bg-indigo-100/50');
-                Parser.handleFiles(e.dataTransfer.files, 'G2B');
-            };
-            fileInputG2B.onchange = (e) => Parser.handleFiles(e.target.files, 'G2B');
+            // Initialize GSTR1 Module
+            GSTR1Analyzer.init();
         });
 
     </script>
