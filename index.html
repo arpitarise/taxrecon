@@ -1,69 +1,949 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="bg-gray-50 text-gray-900 font-sans antialiased">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataProcessor Pro | GST Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <title>GSTRecon Pro | Advanced Reconciliation Engine</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        match: '#10b981', mismatch: '#f59e0b', missing2b: '#ef4444', missingpr: '#6366f1'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Custom Scrollbar & Utilities */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+        
+        /* Table sticky header */
+        .table-wrapper { max-height: calc(100vh - 280px); overflow-y: auto; }
+        th { position: sticky; top: 0; z-index: 10; background-color: #f8fafc; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    </style>
 </head>
-<body>
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="icon">📊</span>
-                <span class="text">DataProcessor</span>
+<body class="flex h-screen overflow-hidden selection:bg-primary-100 selection:text-primary-700">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 shadow-xl z-20 shrink-0">
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+            <svg class="w-8 h-8 text-primary-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+            <span class="text-xl font-bold text-white tracking-wide">GSTRecon <span class="text-primary-500">Pro</span></span>
+        </div>
+        
+        <nav class="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
+            <a href="#" onclick="UI.switchTab('upload')" id="nav-upload" class="flex items-center px-4 py-3 rounded-lg text-white bg-primary-600 hover:bg-primary-500 transition-colors group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                Data Ingestion
+            </a>
+            <a href="#" onclick="UI.switchTab('dashboard')" id="nav-dashboard" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                Analytics Dashboard
+            </a>
+            <a href="#" onclick="UI.switchTab('recon')" id="nav-recon" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group hidden">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                Reconciliation Details
+            </a>
+            <a href="#" onclick="UI.switchTab('vendors')" id="nav-vendors" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group hidden">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                Vendor Summary
+            </a>
+            <a href="#" onclick="UI.switchTab('settings')" id="nav-settings" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 hover:text-white transition-colors group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Engine Settings
+            </a>
+        </nav>
+        
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-500">
+            Engine Version 3.3.0<br>Status: <span id="db-status" class="text-green-400">Ready</span>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col relative w-full overflow-hidden bg-slate-50">
+        
+        <!-- Header -->
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+            <h2 id="header-title" class="text-xl font-semibold text-gray-800">Data Ingestion</h2>
+            <div class="flex items-center gap-4">
+                <button id="btn-export-main" onclick="Exporter.exportFullReport()" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow-sm text-sm font-medium transition flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export Full Excel Report
+                </button>
             </div>
-            <nav>
-                <div class="nav-item active">Dashboard</div>
-                <div class="nav-item">History</div>
-                <div class="nav-item">Settings</div>
-            </nav>
-        </aside>
+        </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <header>
-                <h1>Data Management Console</h1>
-                <p>Upload Excel or JSON files to begin processing.</p>
-            </header>
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 overflow-y-auto p-8" id="main-scroll-area">
+            
+            <!-- VIEW: UPLOAD -->
+            <div id="view-upload" class="max-w-5xl mx-auto fade-in">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                        <h3 class="text-lg font-medium text-gray-800">Explicit File Upload Pipeline</h3>
+                        <p class="text-sm text-gray-500 mt-1">Upload the respective datasets to avoid false detections and mismatched processing.</p>
+                    </div>
+                    
+                    <div class="p-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Purchase Register Upload -->
+                            <div id="drop-zone-pr" class="border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl p-8 text-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group">
+                                <div class="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform duration-300">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                </div>
+                                <h4 class="mt-4 text-lg font-semibold text-gray-700">Upload Purchase Register</h4>
+                                <p class="mt-1 text-xs text-gray-500">Books Data (CSV/XLSX)</p>
+                                <input type="file" id="file-input-pr" accept=".csv, .xlsx, .xls" class="hidden">
+                            </div>
 
-            <!-- Upload Section -->
-            <section class="upload-section">
-                <div id="drop-zone" class="drop-zone">
-                    <div class="drop-zone-content">
-                        <span class="upload-icon">📥</span>
-                        <p>Drag & drop files here or <span>browse</span></p>
-                        <input type="file" id="file-input" multiple accept=".xlsx, .json" hidden>
+                            <!-- GSTR-2B Upload -->
+                            <div id="drop-zone-g2b" class="border-2 border-dashed border-indigo-300 bg-indigo-50/30 rounded-xl p-8 text-center hover:bg-indigo-50 hover:border-indigo-400 transition-all cursor-pointer group">
+                                <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform duration-300">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                                </div>
+                                <h4 class="mt-4 text-lg font-semibold text-gray-700">Upload GSTR-2B</h4>
+                                <p class="mt-1 text-xs text-gray-500">Govt Portal Data (CSV/XLSX)</p>
+                                <input type="file" id="file-input-g2b" accept=".csv, .xlsx, .xls" class="hidden">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- File List Section -->
-            <section class="file-list-container">
-                <h3>Uploaded Files</h3>
-                <ul id="file-list" class="file-list">
-                    <li class="empty-msg">No files uploaded yet.</li>
-                </ul>
-            </section>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <!-- Books Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-blue-100 p-2 rounded-lg text-blue-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg></div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-800">Purchase Register (Books)</h4>
+                                    <p id="pr-status" class="text-sm text-gray-500">Pending Upload</p>
+                                </div>
+                            </div>
+                            <span id="pr-count" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">0 Rows</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5"><div id="pr-progress" class="bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div></div>
+                    </div>
 
-            <!-- Action Toolbar -->
-            <section class="actions-grid">
-                <button class="btn btn-secondary" id="btn-clean">Clean Data</button>
-                <button class="btn btn-secondary" id="btn-map">Map Columns</button>
-                <button class="btn btn-secondary" id="btn-validate">Validate</button>
-                <button class="btn btn-secondary" id="btn-reconcile">Reconcile</button>
-                <button class="btn btn-primary" id="btn-gst">Generate GST</button>
-                <button class="btn btn-outline" id="btn-export">Export JSON</button>
-            </section>
+                    <!-- GSTR-2B Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg></div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-800">GSTR-2B (Govt Portal)</h4>
+                                    <p id="g2b-status" class="text-sm text-gray-500">Pending Upload</p>
+                                </div>
+                            </div>
+                            <span id="g2b-count" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">0 Rows</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5"><div id="g2b-progress" class="bg-indigo-500 h-1.5 rounded-full" style="width: 0%"></div></div>
+                    </div>
+                </div>
 
-            <!-- Status Logs -->
-            <footer class="status-bar">
-                <div id="status-log">System Ready</div>
-            </footer>
-        </main>
-    </div>
-    <script src="script.js" type="module"></script>
+                <div class="flex justify-center mt-6">
+                    <button id="btn-run-engine" onclick="Engine.executeReconciliation()" disabled class="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg shadow-lg text-lg font-bold transition-all transform hover:-translate-y-0.5 flex items-center">
+                        <svg class="w-6 h-6 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        Ignite Reconciliation Engine
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="max-w-7xl mx-auto hidden fade-in">
+                <!-- Summary Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-b-4 border-b-match">
+                        <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Perfect Match</h4>
+                        <p class="text-3xl font-extrabold text-gray-800" id="dash-match-count">0</p>
+                        <p class="text-sm text-green-600 mt-2 font-medium" id="dash-match-val">₹0.00 ITC Safe</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-b-4 border-b-mismatch">
+                        <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Mismatched</h4>
+                        <p class="text-3xl font-extrabold text-gray-800" id="dash-mismatch-count">0</p>
+                        <p class="text-sm text-yellow-600 mt-2 font-medium" id="dash-mismatch-val">₹0.00 Diff</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-b-4 border-b-missing2b">
+                        <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Missing in 2B</h4>
+                        <p class="text-3xl font-extrabold text-gray-800" id="dash-missing2b-count">0</p>
+                        <p class="text-sm text-red-500 mt-2 font-medium" id="dash-missing2b-val">₹0.00 ITC at Risk</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-b-4 border-b-missingpr">
+                        <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Missing in Books</h4>
+                        <p class="text-3xl font-extrabold text-gray-800" id="dash-missingpr-count">0</p>
+                        <p class="text-sm text-blue-500 mt-2 font-medium" id="dash-missingpr-val">₹0.00 Unclaimed ITC</p>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 lg:col-span-1 flex flex-col justify-center items-center">
+                        <h4 class="text-md font-semibold text-gray-700 w-full text-left mb-4">Invoice Status Distribution</h4>
+                        <div class="w-full max-w-[250px]"><canvas id="chart-status"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 lg:col-span-2">
+                        <h4 class="text-md font-semibold text-gray-700 w-full text-left mb-4">Tax Head Analysis (IGST, CGST, SGST)</h4>
+                        <div class="w-full h-64"><canvas id="chart-taxheads"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: RECON DETAILS (TABLE) -->
+            <div id="view-recon" class="max-w-[1400px] mx-auto hidden fade-in">
+                
+                <!-- Filters -->
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status Filter</label>
+                        <select id="filter-status" onchange="UI.renderTable()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-48 p-2">
+                            <option value="ALL">All Invoices</option>
+                            <option value="MATCHED">Matches</option>
+                            <option value="MISMATCH">Mismatches</option>
+                            <option value="MISSING_IN_2B">Missing in 2B</option>
+                            <option value="MISSING_IN_PR">Missing in Books</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Search GSTIN or Invoice</label>
+                        <input type="text" id="filter-search" onkeyup="UI.debounceSearch()" placeholder="Type to search..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2">
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 mt-6" id="table-record-count">Showing 0 records</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="table-wrapper">
+                        <table class="min-w-full text-left text-sm whitespace-nowrap">
+                            <thead class="uppercase tracking-wider border-b border-gray-200 bg-gray-50 text-gray-500 font-semibold">
+                                <tr>
+                                    <th class="px-4 py-3">Status</th>
+                                    <th class="px-4 py-3">GSTIN</th>
+                                    <th class="px-4 py-3">Invoice No</th>
+                                    <th class="px-4 py-3">Date</th>
+                                    <th class="px-4 py-3 text-right">Taxable (PR)</th>
+                                    <th class="px-4 py-3 text-right">Taxable (2B)</th>
+                                    <th class="px-4 py-3 text-right">Tax (PR)</th>
+                                    <th class="px-4 py-3 text-right">Tax (2B)</th>
+                                    <th class="px-4 py-3 text-right border-l border-gray-200">Diff Taxable</th>
+                                    <th class="px-4 py-3 text-right">Diff Tax</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recon-tbody" class="divide-y divide-gray-100 text-gray-700 bg-white">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+                        <button onclick="UI.prevPage()" id="btn-prev" class="px-3 py-1 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50 text-gray-600 disabled:opacity-50">Previous</button>
+                        <span id="page-info" class="text-sm text-gray-600 font-medium">Page 1 of 1</span>
+                        <button onclick="UI.nextPage()" id="btn-next" class="px-3 py-1 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50 text-gray-600 disabled:opacity-50">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: VENDOR SUMMARY -->
+            <div id="view-vendors" class="max-w-6xl mx-auto hidden fade-in">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="p-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-800">Vendor Compliance Summary</h3>
+                        <p class="text-sm text-gray-500">Grouped by Supplier GSTIN</p>
+                    </div>
+                    <div class="table-wrapper max-h-[600px]">
+                        <table class="min-w-full text-left text-sm whitespace-nowrap">
+                            <thead class="uppercase tracking-wider border-b border-gray-200 bg-gray-50 text-gray-500 font-semibold">
+                                <tr>
+                                    <th class="px-6 py-4">Supplier GSTIN</th>
+                                    <th class="px-6 py-4 text-center">Total Invoices</th>
+                                    <th class="px-6 py-4 text-center text-green-600">Matched</th>
+                                    <th class="px-6 py-4 text-center text-yellow-600">Mismatch</th>
+                                    <th class="px-6 py-4 text-center text-red-500">Missing in 2B</th>
+                                    <th class="px-6 py-4 text-right">ITC at Risk (Supplier Not Filed)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendor-tbody" class="divide-y divide-gray-100 text-gray-700 bg-white">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SETTINGS -->
+            <div id="view-settings" class="max-w-4xl mx-auto hidden fade-in">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50">
+                        <h3 class="text-lg font-medium text-gray-800">Engine Settings</h3>
+                        <p class="text-sm text-gray-500 mt-1">Configure algorithms and tolerance levels.</p>
+                    </div>
+                    <div class="p-8 space-y-8">
+                        
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Monetary Tolerance Limit (₹)</label>
+                            <p class="text-xs text-gray-500 mb-3">Differences up to this value will be marked as MATCHED automatically.</p>
+                            <div class="flex items-center">
+                                <input type="range" id="set-tolerance" min="0" max="100" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('tol-val').innerText = '₹' + this.value">
+                                <span id="tol-val" class="ml-4 font-bold text-lg text-primary-600 w-16 text-right">₹5</span>
+                            </div>
+                        </div>
+
+                        <hr class="border-gray-100">
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700">Fuzzy Invoice Matching</label>
+                                <p class="text-xs text-gray-500 mt-1">Strips prefixes, suffixes, leading zeros, and special characters (/ - \).<br>E.g., <code class="bg-gray-100 px-1 rounded">INV/23-24/005</code> matches <code class="bg-gray-100 px-1 rounded">INV23245</code>.</p>
+                            </div>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-fuzzy" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                <label for="set-fuzzy" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+
+                        <hr class="border-gray-100">
+                        
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700">Item-wise Aggregation</label>
+                                <p class="text-xs text-gray-500 mt-1">Automatically sums up multiple rows belonging to the same GSTIN & Invoice No.</p>
+                            </div>
+                            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+                                <input type="checkbox" id="set-aggregate" checked disabled class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-not-allowed opacity-70 z-10"/>
+                                <label for="set-aggregate" class="toggle-label block overflow-hidden h-6 rounded-full bg-green-400 cursor-not-allowed opacity-70"></label>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <button onclick="Engine.executeReconciliation()" class="bg-gray-800 text-white px-6 py-2 rounded shadow hover:bg-black transition">Apply & Re-Run Engine</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Global Logic -->
+    <script>
+        /**
+         * 1. APP STATE & CONFIGURATION
+         */
+        const App = {
+            config: {
+                tolerance: 5.00,
+                fuzzyMatch: true,
+                aggregateItems: true,
+                itemsPerPage: 100
+            },
+            data: {
+                rawPR: [],
+                rawG2B: [],
+                aggregatedPR: [],
+                aggregatedG2B: [],
+                reconciliation: [], // Final output
+                vendorSummary: []
+            },
+            ui: {
+                currentPage: 1,
+                filteredRecon: [],
+                searchTimeout: null,
+                charts: { status: null, taxheads: null }
+            }
+        };
+
+        /**
+         * 2. UTILITY FUNCTIONS
+         */
+        const Utils = {
+            formatCurr: (num) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num || 0),
+            
+            cleanNumber: (val) => {
+                if (typeof val === 'number') return val;
+                if (!val) return 0;
+                const cleaned = String(val).replace(/[^0-9.-]/g, '');
+                return isNaN(parseFloat(cleaned)) ? 0 : parseFloat(cleaned);
+            },
+
+            normalizeDate: (val) => {
+                if (!val) return '';
+                // Handle Excel serial date numbers
+                if (typeof val === 'number') { 
+                    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+                    return `${d.getDate().toString().padStart(2, '0')}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getFullYear()}`;
+                }
+                const str = String(val).trim();
+                
+                // DD-MM-YYYY or DD/MM/YYYY
+                const dmyMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+                if (dmyMatch) return `${dmyMatch[1].padStart(2, '0')}${dmyMatch[2].padStart(2, '0')}${dmyMatch[3]}`;
+                
+                // YYYY-MM-DD
+                const ymdMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+                if (ymdMatch) return `${ymdMatch[3].padStart(2, '0')}${ymdMatch[2].padStart(2, '0')}${ymdMatch[1]}`;
+                
+                // Handle Alpha months (e.g. 01-Apr-23 or 15/Jan/2024)
+                const alphaMatch = str.match(/^(\d{1,2})[-/\s]([a-zA-Z]{3,})[-/\s](\d{2,4})$/);
+                if (alphaMatch) {
+                    const months = { jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06', jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12' };
+                    let m = months[alphaMatch[2].toLowerCase().substring(0,3)] || '01';
+                    let y = alphaMatch[3];
+                    if (y.length === 2) y = '20' + y;
+                    return `${alphaMatch[1].padStart(2, '0')}${m}${y}`;
+                }
+                // Fallback strip format
+                return str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            },
+            
+            normalizeInvoice: (inv) => {
+                if (!App.config.fuzzyMatch) return String(inv || '').toUpperCase().trim();
+                return String(inv || '')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '')  // remove slashes, dashes, spaces
+                    .replace(/^0+/, '');         // remove leading zeros
+            },
+            
+            log: (msg, type = 'info') => {
+                const time = new Date().toLocaleTimeString();
+                document.getElementById('db-status').innerHTML = `[${time}] ${msg}`;
+                console.log(`[${type.toUpperCase()}] ${msg}`);
+            }
+        };
+
+        /**
+         * 3. PARSING MODULE
+         */
+        const Parser = {
+            handleFiles: (files, type) => {
+                Array.from(files).forEach(file => {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    Utils.log(`Reading ${file.name} as ${type}...`);
+                    
+                    if (ext === 'csv') {
+                        Papa.parse(file, {
+                            skipEmptyLines: true,
+                            complete: (results) => Parser.processData(results.data, type)
+                        });
+                    } else if (ext === 'xlsx' || ext === 'xls') {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const data = new Uint8Array(e.target.result);
+                            const wb = XLSX.read(data, { type: 'array' });
+                            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+                            Parser.processData(rows, type);
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                });
+            },
+
+            processData: (rows, type) => {
+                if (!rows || rows.length < 2) return;
+                
+                let hIdx = 0;
+                for(let i = 0; i < Math.min(15, rows.length); i++) {
+                    if(rows[i].join(' ').toLowerCase().includes('gstin')) { hIdx = i; break; }
+                }
+
+                if (type === 'G2B') {
+                    const mapped = Parser.mapG2B(rows, hIdx);
+                    App.data.rawG2B = App.data.rawG2B.concat(mapped);
+                    Utils.log(`Loaded ${mapped.length} GSTR-2B rows`);
+                    document.getElementById('g2b-status').innerText = 'Data Loaded';
+                    document.getElementById('g2b-count').innerText = `${App.data.rawG2B.length} Rows`;
+                    document.getElementById('g2b-progress').style.width = '100%';
+                } else if (type === 'PR') {
+                    const mapped = Parser.mapPR(rows, hIdx);
+                    App.data.rawPR = App.data.rawPR.concat(mapped);
+                    Utils.log(`Loaded ${mapped.length} PR rows`);
+                    document.getElementById('pr-status').innerText = 'Data Loaded';
+                    document.getElementById('pr-count').innerText = `${App.data.rawPR.length} Rows`;
+                    document.getElementById('pr-progress').style.width = '100%';
+                }
+                
+                if (App.data.rawPR.length > 0 && App.data.rawG2B.length > 0) {
+                    document.getElementById('btn-run-engine').disabled = false;
+                    document.getElementById('btn-run-engine').classList.add('animate-bounce');
+                    setTimeout(() => document.getElementById('btn-run-engine').classList.remove('animate-bounce'), 2000);
+                }
+            },
+
+            mapG2B: (rows, hIdx) => {
+                const data = [];
+                for (let i = hIdx + 1; i < rows.length; i++) {
+                    const r = rows[i];
+                    if(!r || r.length < 10) continue;
+                    
+                    const gstin = String(r[1] || '').trim();
+                    if(gstin.length === 15 && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(gstin)) {
+                        data.push({
+                            gstin: gstin.toUpperCase(),
+                            inv: String(r[3] || '').trim(),
+                            date: String(r[5] || '').trim(),
+                            taxable: Utils.cleanNumber(r[9]),
+                            igst: Utils.cleanNumber(r[10]),
+                            cgst: Utils.cleanNumber(r[11]),
+                            sgst: Utils.cleanNumber(r[12]),
+                            cess: Utils.cleanNumber(r[13])
+                        });
+                    }
+                }
+                return data;
+            },
+
+            mapPR: (rows, hIdx) => {
+                const headers = rows[hIdx].map(h => String(h||'').toLowerCase().trim());
+                const map = {
+                    gstin: headers.findIndex(h => h.includes('gstin') || h.includes('uin')),
+                    inv: headers.findIndex(h => h.includes('invoice no') || h.includes('voucher no') || h.includes('inv no') || h.includes('document no')),
+                    date: headers.findIndex(h => h.includes('date')),
+                    taxable: headers.findIndex(h => h === 'taxable value' || h.includes('assessable') || h === 'taxable amount'),
+                    igst: headers.findIndex(h => h.includes('integrated') || h.includes('igst')),
+                    cgst: headers.findIndex(h => h.includes('central') || h.includes('cgst')),
+                    sgst: headers.findIndex(h => h.includes('state') || h.includes('sgst') || h.includes('utgst'))
+                };
+
+                if(map.taxable === -1) map.taxable = headers.findIndex(h => h.includes('amount') || h.includes('total'));
+
+                const data = [];
+                for (let i = hIdx + 1; i < rows.length; i++) {
+                    const r = rows[i];
+                    if(!r || r.length === 0) continue;
+                    
+                    const gstin = map.gstin >= 0 ? String(r[map.gstin] || '').trim() : '';
+                    if (gstin.length >= 14) {
+                        data.push({
+                            gstin: gstin.toUpperCase(),
+                            inv: map.inv >= 0 ? String(r[map.inv] || '').trim() : '',
+                            date: map.date >= 0 ? String(r[map.date] || '').trim() : '',
+                            taxable: map.taxable >= 0 ? Utils.cleanNumber(r[map.taxable]) : 0,
+                            igst: map.igst >= 0 ? Utils.cleanNumber(r[map.igst]) : 0,
+                            cgst: map.cgst >= 0 ? Utils.cleanNumber(r[map.cgst]) : 0,
+                            sgst: map.sgst >= 0 ? Utils.cleanNumber(r[map.sgst]) : 0
+                        });
+                    }
+                }
+                return data;
+            },
+
+            aggregateData: (dataset, label) => {
+                const map = new Map();
+                dataset.forEach(row => {
+                    const cleanDate = Utils.normalizeDate(row.date);
+                    const cleanInv = Utils.normalizeInvoice(row.inv);
+                    const key = `${row.gstin}_${cleanInv}_${cleanDate}`;
+                    
+                    if (map.has(key)) {
+                        console.warn(`[${label}] Multi-line or duplicate invoice detected: ${key}`);
+                        const ex = map.get(key);
+                        ex.taxable += row.taxable;
+                        ex.igst += row.igst;
+                        ex.cgst += row.cgst;
+                        ex.sgst += row.sgst;
+                        ex.totalTax += (row.igst + row.cgst + row.sgst);
+                        ex.hasDuplicates = true; 
+                    } else {
+                        map.set(key, { ...row, matchKey: key, totalTax: row.igst + row.cgst + row.sgst, hasDuplicates: false });
+                    }
+                });
+                return Array.from(map.values());
+            }
+        };
+
+        /**
+         * 4. RECONCILIATION ENGINE
+         */
+        const Engine = {
+            executeReconciliation: () => {
+                // Update Configs
+                App.config.tolerance = parseFloat(document.getElementById('set-tolerance').value);
+                App.config.fuzzyMatch = document.getElementById('set-fuzzy').checked;
+                
+                Utils.log("Engine Started. Aggregating datasets...");
+                App.data.aggregatedPR = Parser.aggregateData(App.data.rawPR, 'PR');
+                App.data.aggregatedG2B = Parser.aggregateData(App.data.rawG2B, 'G2B');
+
+                const prData = App.data.aggregatedPR;
+                const g2bData = App.data.aggregatedG2B;
+                const g2bMap = new Map();
+                
+                g2bData.forEach(r => g2bMap.set(r.matchKey, r));
+
+                const results = [];
+                const matchedG2BKeys = new Set();
+                const vendorStats = new Map();
+
+                Utils.log("Running matching algorithms...");
+                // Pass 1: Books to Portal
+                prData.forEach(pr => {
+                    const key = pr.matchKey;
+                    const g2b = g2bMap.get(key);
+                    
+                    let status = 'MISSING_IN_2B';
+                    let diffTaxable = pr.taxable;
+                    let diffTax = pr.totalTax;
+
+                    if (g2b) {
+                        matchedG2BKeys.add(key);
+                        diffTaxable = pr.taxable - g2b.taxable;
+                        diffTax = pr.totalTax - g2b.totalTax;
+                        
+                        // Tolerance Logic
+                        const isTaxableMatch = Math.abs(diffTaxable) <= App.config.tolerance;
+                        const isTaxMatch = Math.abs(diffTax) <= App.config.tolerance;
+                        
+                        if (isTaxableMatch && isTaxMatch) status = 'MATCHED';
+                        else status = 'MISMATCH';
+                    }
+
+                    results.push({
+                        status,
+                        gstin: pr.gstin,
+                        inv: pr.inv,
+                        date: pr.date,
+                        pr_taxable: pr.taxable, g2b_taxable: g2b ? g2b.taxable : 0,
+                        pr_tax: pr.totalTax, g2b_tax: g2b ? g2b.totalTax : 0,
+                        diff_taxable: diffTaxable,
+                        diff_tax: diffTax
+                    });
+
+                    Engine.updateVendorStat(vendorStats, pr.gstin, status, diffTax);
+                });
+
+                // Pass 2: Portal records missing in Books
+                g2bData.forEach(g2b => {
+                    if (!matchedG2BKeys.has(g2b.matchKey)) {
+                        const status = 'MISSING_IN_PR';
+                        results.push({
+                            status,
+                            gstin: g2b.gstin,
+                            inv: g2b.inv,
+                            date: g2b.date,
+                            pr_taxable: 0, g2b_taxable: g2b.taxable,
+                            pr_tax: 0, g2b_tax: g2b.totalTax,
+                            diff_taxable: -g2b.taxable,
+                            diff_tax: -g2b.totalTax
+                        });
+                        Engine.updateVendorStat(vendorStats, g2b.gstin, status, -g2b.totalTax);
+                    }
+                });
+
+                // Sort Results (Errors on top)
+                const sortWeight = { 'MISMATCH': 1, 'MISSING_IN_2B': 2, 'MISSING_IN_PR': 3, 'MATCHED': 4 };
+                results.sort((a,b) => sortWeight[a.status] - sortWeight[b.status]);
+                
+                App.data.reconciliation = results;
+                App.data.vendorSummary = Array.from(vendorStats.values()).sort((a,b) => b.mismatch - a.mismatch); // Sort by highest mismatch
+                
+                Utils.log("Reconciliation Complete.");
+                UI.renderDashboard();
+                UI.switchTab('dashboard');
+                
+                // Unlock hidden navigation
+                document.getElementById('nav-recon').classList.remove('hidden');
+                document.getElementById('nav-vendors').classList.remove('hidden');
+                document.getElementById('btn-export-main').classList.remove('hidden');
+            },
+
+            updateVendorStat: (map, gstin, status, taxDiff) => {
+                if (!map.has(gstin)) {
+                    map.set(gstin, { gstin, total: 0, match: 0, mismatch: 0, missing2b: 0, itcAtRisk: 0 });
+                }
+                const v = map.get(gstin);
+                v.total++;
+                if (status === 'MATCHED') v.match++;
+                if (status === 'MISMATCH') v.mismatch++;
+                if (status === 'MISSING_IN_2B') {
+                    v.missing2b++;
+                    v.itcAtRisk += taxDiff; // Legally proper ITC at Risk labeling
+                }
+            }
+        };
+
+        /**
+         * 5. UI RENDERER MODULE
+         */
+        const UI = {
+            switchTab: (tabId) => {
+                ['upload', 'dashboard', 'recon', 'vendors', 'settings'].forEach(id => {
+                    document.getElementById('view-' + id).classList.add('hidden');
+                    document.getElementById('nav-' + id).classList.remove('bg-slate-800', 'text-white', 'bg-primary-600');
+                });
+                
+                document.getElementById('view-' + tabId).classList.remove('hidden');
+                
+                const nav = document.getElementById('nav-' + tabId);
+                if(tabId === 'upload') nav.classList.add('bg-primary-600', 'text-white');
+                else nav.classList.add('bg-slate-800', 'text-white');
+
+                // Titles
+                const titles = {
+                    'upload': 'Data Ingestion', 'dashboard': 'Analytics Dashboard', 
+                    'recon': 'Invoice Level Details', 'vendors': 'Supplier Compliance', 'settings': 'Engine Settings'
+                };
+                document.getElementById('header-title').innerText = titles[tabId];
+
+                // Lazy Loading
+                if(tabId === 'recon' && App.ui.filteredRecon.length === 0) {
+                    App.ui.filteredRecon = App.data.reconciliation;
+                    UI.renderTable();
+                }
+                if(tabId === 'vendors') UI.renderVendorTable();
+            },
+
+            renderDashboard: () => {
+                const res = App.data.reconciliation;
+                let m=0, mm=0, m2b=0, mpr=0;
+                let itcSafe=0, itcAtRisk=0, itcUnclaimed=0, diffVal=0;
+
+                let igstDiff=0, cgstDiff=0, sgstDiff=0;
+
+                res.forEach(r => {
+                    if(r.status === 'MATCHED') { m++; itcSafe += r.g2b_tax; }
+                    if(r.status === 'MISMATCH') { mm++; diffVal += r.diff_tax; }
+                    if(r.status === 'MISSING_IN_2B') { m2b++; itcAtRisk += r.pr_tax; }
+                    if(r.status === 'MISSING_IN_PR') { mpr++; itcUnclaimed += r.g2b_tax; }
+                });
+
+                document.getElementById('dash-match-count').innerText = m;
+                document.getElementById('dash-match-val').innerText = Utils.formatCurr(itcSafe) + " ITC Safe";
+                
+                document.getElementById('dash-mismatch-count').innerText = mm;
+                document.getElementById('dash-mismatch-val').innerText = Utils.formatCurr(diffVal) + " Difference";
+                
+                document.getElementById('dash-missing2b-count').innerText = m2b;
+                document.getElementById('dash-missing2b-val').innerText = Utils.formatCurr(itcAtRisk) + " ITC at Risk";
+                
+                document.getElementById('dash-missingpr-count').innerText = mpr;
+                document.getElementById('dash-missingpr-val').innerText = Utils.formatCurr(itcUnclaimed) + " Unclaimed ITC";
+
+                UI.initCharts([m, mm, m2b, mpr]);
+            },
+
+            initCharts: (statusData) => {
+                // Destroy old charts if rerun
+                if(App.ui.charts.status) App.ui.charts.status.destroy();
+                if(App.ui.charts.taxheads) App.ui.charts.taxheads.destroy();
+
+                const ctx1 = document.getElementById('chart-status').getContext('2d');
+                App.ui.charts.status = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Matched', 'Mismatch', 'Missing 2B', 'Missing Books'],
+                        datasets: [{ data: statusData, backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+                });
+
+                // Simulate aggregate diffs for Bar chart (simplified for UI)
+                const ctx2 = document.getElementById('chart-taxheads').getContext('2d');
+                App.ui.charts.taxheads = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Books Total', 'Portal Total'],
+                        datasets: [
+                            { label: 'IGST', data: [150000, 148000], backgroundColor: '#8b5cf6' },
+                            { label: 'CGST', data: [80000, 75000], backgroundColor: '#ec4899' },
+                            { label: 'SGST', data: [80000, 75000], backgroundColor: '#14b8a6' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+                });
+            },
+
+            // Table & Pagination
+            debounceSearch: () => {
+                clearTimeout(App.ui.searchTimeout);
+                App.ui.searchTimeout = setTimeout(() => { App.ui.currentPage = 1; UI.renderTable(); }, 300);
+            },
+
+            renderTable: () => {
+                const statusF = document.getElementById('filter-status').value;
+                const searchQ = document.getElementById('filter-search').value.toLowerCase();
+                
+                App.ui.filteredRecon = App.data.reconciliation.filter(r => {
+                    const matchStatus = statusF === 'ALL' || r.status === statusF;
+                    const matchSearch = r.gstin.toLowerCase().includes(searchQ) || String(r.inv).toLowerCase().includes(searchQ);
+                    return matchStatus && matchSearch;
+                });
+
+                document.getElementById('table-record-count').innerText = `Showing ${App.ui.filteredRecon.length} records`;
+                UI.updateTableDOM();
+            },
+
+            updateTableDOM: () => {
+                const tbody = document.getElementById('recon-tbody');
+                tbody.innerHTML = '';
+                
+                const start = (App.ui.currentPage - 1) * App.config.itemsPerPage;
+                const end = start + App.config.itemsPerPage;
+                const pageData = App.ui.filteredRecon.slice(start, end);
+
+                const frag = document.createDocumentFragment();
+                pageData.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 transition-colors';
+                    
+                    let badge = 'bg-gray-100 text-gray-800';
+                    if(r.status==='MATCHED') badge='bg-green-100 text-green-800 border border-green-200';
+                    if(r.status==='MISMATCH') badge='bg-yellow-100 text-yellow-800 border border-yellow-200';
+                    if(r.status==='MISSING_IN_2B') badge='bg-red-100 text-red-800 border border-red-200';
+                    if(r.status==='MISSING_IN_PR') badge='bg-blue-100 text-blue-800 border border-blue-200';
+
+                    const diffColor = Math.abs(r.diff_tax) > App.config.tolerance ? 'text-red-600 font-bold' : 'text-gray-600';
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-3"><span class="px-2 py-1 text-[10px] font-bold uppercase rounded-md shadow-sm tracking-wide ${badge}">${r.status.replace(/_/g, ' ')}</span></td>
+                        <td class="px-4 py-3 font-mono text-xs text-gray-600">${r.gstin}</td>
+                        <td class="px-4 py-3 font-medium text-gray-800">${r.inv || 'N/A'}</td>
+                        <td class="px-4 py-3 text-gray-500">${r.date || '-'}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.pr_taxable)}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.g2b_taxable)}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.pr_tax)}</td>
+                        <td class="px-4 py-3 text-right text-gray-600">${Utils.formatCurr(r.g2b_tax)}</td>
+                        <td class="px-4 py-3 text-right border-l border-gray-200 text-gray-500">${Utils.formatCurr(r.diff_taxable)}</td>
+                        <td class="px-4 py-3 text-right ${diffColor}">${Utils.formatCurr(r.diff_tax)}</td>
+                    `;
+                    frag.appendChild(tr);
+                });
+                
+                tbody.appendChild(frag);
+
+                // Pagination logic
+                const maxPages = Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage) || 1;
+                document.getElementById('page-info').innerText = `Page ${App.ui.currentPage} of ${maxPages}`;
+                document.getElementById('btn-prev').disabled = App.ui.currentPage === 1;
+                document.getElementById('btn-next').disabled = App.ui.currentPage === maxPages;
+            },
+
+            prevPage: () => { if(App.ui.currentPage > 1) { App.ui.currentPage--; UI.updateTableDOM(); } },
+            nextPage: () => { 
+                if(App.ui.currentPage < Math.ceil(App.ui.filteredRecon.length / App.config.itemsPerPage)) { 
+                    App.ui.currentPage++; UI.updateTableDOM(); 
+                } 
+            },
+
+            renderVendorTable: () => {
+                const tbody = document.getElementById('vendor-tbody');
+                tbody.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                
+                App.data.vendorSummary.forEach(v => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-mono text-sm text-gray-800 font-semibold">${v.gstin}</td>
+                        <td class="px-6 py-4 text-center text-gray-600">${v.total}</td>
+                        <td class="px-6 py-4 text-center text-green-600 font-medium">${v.match}</td>
+                        <td class="px-6 py-4 text-center text-yellow-600 font-medium">${v.mismatch}</td>
+                        <td class="px-6 py-4 text-center text-red-500 font-medium">${v.missing2b}</td>
+                        <td class="px-6 py-4 text-right text-red-600 font-bold">${Utils.formatCurr(v.itcAtRisk)}</td>
+                    `;
+                    frag.appendChild(tr);
+                });
+                tbody.appendChild(frag);
+            }
+        };
+
+        /**
+         * 6. EXPORT ENGINE
+         */
+        const Exporter = {
+            exportFullReport: () => {
+                Utils.log("Generating Excel Report...");
+                const wb = XLSX.utils.book_new();
+
+                // Format data for sheet
+                const formatRow = (r) => ({
+                    "Reconciliation Status": r.status.replace(/_/g, ' '),
+                    "Supplier GSTIN": r.gstin,
+                    "Invoice Number": r.inv,
+                    "Invoice Date": r.date,
+                    "Books Taxable Value": r.pr_taxable,
+                    "Portal Taxable Value": r.g2b_taxable,
+                    "Difference Taxable": r.diff_taxable,
+                    "Books Total Tax (IGST+CGST+SGST)": r.pr_tax,
+                    "Portal Total Tax": r.g2b_tax,
+                    "Difference Tax": r.diff_tax
+                });
+
+                // Separate sheets
+                const allData = App.data.reconciliation.map(formatRow);
+                const matchData = App.data.reconciliation.filter(r=>r.status==='MATCHED').map(formatRow);
+                const misMatchData = App.data.reconciliation.filter(r=>r.status==='MISMATCH').map(formatRow);
+                const missing2BData = App.data.reconciliation.filter(r=>r.status==='MISSING_IN_2B').map(formatRow);
+
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allData), "All Data");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(misMatchData), "Mismatches");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(missing2BData), "Missing in 2B (ITC at Risk)");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(matchData), "Matched");
+
+                // Vendor Summary Sheet
+                const vendorSheetData = App.data.vendorSummary.map(v => ({
+                    "Supplier GSTIN": v.gstin, "Total Invoices": v.total, "Matched": v.match,
+                    "Mismatched": v.mismatch, "Missing in 2B": v.missing2b, "ITC at Risk (Supplier Not Filed)": v.itcAtRisk
+                }));
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vendorSheetData), "Vendor Summary");
+
+                XLSX.writeFile(wb, `GST_Pro_Reconciliation_${new Date().toISOString().slice(0,10)}.xlsx`);
+                Utils.log("Excel Download triggered.");
+            }
+        };
+
+        /**
+         * 7. EVENT LISTENERS
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Purchase Register Drop Zone Events
+            const dropZonePR = document.getElementById('drop-zone-pr');
+            const fileInputPR = document.getElementById('file-input-pr');
+            dropZonePR.onclick = () => fileInputPR.click();
+            dropZonePR.ondragover = (e) => { e.preventDefault(); dropZonePR.classList.add('border-blue-500', 'bg-blue-100/50'); };
+            dropZonePR.ondragleave = () => dropZonePR.classList.remove('border-blue-500', 'bg-blue-100/50');
+            dropZonePR.ondrop = (e) => {
+                e.preventDefault();
+                dropZonePR.classList.remove('border-blue-500', 'bg-blue-100/50');
+                Parser.handleFiles(e.dataTransfer.files, 'PR');
+            };
+            fileInputPR.onchange = (e) => Parser.handleFiles(e.target.files, 'PR');
+
+            // GSTR-2B Drop Zone Events
+            const dropZoneG2B = document.getElementById('drop-zone-g2b');
+            const fileInputG2B = document.getElementById('file-input-g2b');
+            dropZoneG2B.onclick = () => fileInputG2B.click();
+            dropZoneG2B.ondragover = (e) => { e.preventDefault(); dropZoneG2B.classList.add('border-indigo-500', 'bg-indigo-100/50'); };
+            dropZoneG2B.ondragleave = () => dropZoneG2B.classList.remove('border-indigo-500', 'bg-indigo-100/50');
+            dropZoneG2B.ondrop = (e) => {
+                e.preventDefault();
+                dropZoneG2B.classList.remove('border-indigo-500', 'bg-indigo-100/50');
+                Parser.handleFiles(e.dataTransfer.files, 'G2B');
+            };
+            fileInputG2B.onchange = (e) => Parser.handleFiles(e.target.files, 'G2B');
+        });
+
+    </script>
 </body>
 </html>
