@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" class="bg-slate-50 text-slate-800 font-sans antialiased">
 <head>
@@ -70,21 +69,42 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col fade-in">
             <div class="p-6 border-b border-slate-200 bg-slate-50">
                 <h2 class="text-xl font-extrabold text-slate-800">Real-Time Row Edit</h2>
-                <p class="text-sm text-slate-500">Changes will instantly recalculate the match status.</p>
+                <p class="text-sm text-slate-500 mt-1">Fix typos to instantly merge orphaned rows and update statuses.</p>
             </div>
-            <div class="p-6 grid grid-cols-2 gap-4">
+            <div class="p-6 grid grid-cols-2 gap-5">
                 <input type="hidden" id="edit-uid">
-                <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-slate-600 mb-1">GSTIN</label><input type="text" id="edit-gstin" class="w-full border rounded p-2 text-sm uppercase"></div>
-                <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-slate-600 mb-1">Invoice Number</label><input type="text" id="edit-inv" class="w-full border rounded p-2 text-sm uppercase"></div>
-                <div class="col-span-2"><label class="block text-xs font-bold text-slate-600 mb-1">Party Name</label><input type="text" id="edit-party" class="w-full border rounded p-2 text-sm"></div>
-                <div><label class="block text-xs font-bold text-blue-600 mb-1">Taxable (Books PR)</label><input type="number" id="edit-ptx" class="w-full border border-blue-200 bg-blue-50 rounded p-2 text-sm"></div>
-                <div><label class="block text-xs font-bold text-indigo-600 mb-1">Taxable (Portal 2B)</label><input type="number" id="edit-gtx" class="w-full border border-indigo-200 bg-indigo-50 rounded p-2 text-sm"></div>
-                <div><label class="block text-xs font-bold text-blue-600 mb-1">Total Tax (Books PR)</label><input type="number" id="edit-pt" class="w-full border border-blue-200 bg-blue-50 rounded p-2 text-sm"></div>
-                <div><label class="block text-xs font-bold text-indigo-600 mb-1">Total Tax (Portal 2B)</label><input type="number" id="edit-gt" class="w-full border border-indigo-200 bg-indigo-50 rounded p-2 text-sm"></div>
+                <div class="col-span-2 md:col-span-1">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">GSTIN</label>
+                    <input type="text" id="edit-gstin" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="col-span-2 md:col-span-1">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Invoice Number</label>
+                    <input type="text" id="edit-inv" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Party Name</label>
+                    <input type="text" id="edit-party" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-blue-600 mb-1">Taxable (Books PR)</label>
+                    <input type="number" id="edit-ptx" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-indigo-600 mb-1">Taxable (Portal 2B)</label>
+                    <input type="number" id="edit-gtx" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-blue-600 mb-1">Total Tax (Books PR)</label>
+                    <input type="number" id="edit-pt" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-indigo-600 mb-1">Total Tax (Portal 2B)</label>
+                    <input type="number" id="edit-gt" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
+                </div>
             </div>
-            <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-4">
-                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="px-5 py-2 text-slate-700 bg-white border rounded shadow-sm font-bold">Cancel</button>
-                <button onclick="Recon.saveRowEdit()" class="px-5 py-2 bg-green-600 text-white rounded shadow-md hover:bg-green-700 font-bold">Save & Recalculate</button>
+            <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+                <button onclick="Recon.saveRowEdit()" class="px-5 py-2.5 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 font-bold transition">Save & Recalculate</button>
             </div>
         </div>
     </div>
@@ -323,15 +343,11 @@
             normInv: (inv, fuz) => {
                 let s = String(inv).toUpperCase().trim();
                 if (!fuz) return s;
-                // Financial Year Normalization (e.g. 2025-26 -> 2526)
                 s = s.replace(/20(\d{2})[-/]?20(\d{2})/g, '$1$2'); 
                 s = s.replace(/20(\d{2})[-/]?(\d{2})/g, '$1$2');   
                 s = s.replace(/(\d{2})[-/](\d{2})/g, '$1$2');      
-                // Remove internal leading zeros (zeros following a non-digit)
                 s = s.replace(/([^1-9])0+([1-9])/g, '$1$2');
-                // Remove start leading zeros
                 s = s.replace(/^0+/, '');
-                // Strip special characters
                 s = s.replace(/[^A-Z0-9]/g, '');
                 return s;
             }
@@ -358,7 +374,7 @@
         };
 
         // ==========================================
-        // MODULE 1: GSTR-1 ANALYZER (Kept as is)
+        // MODULE 1: GSTR-1 ANALYZER 
         // ==========================================
         const GSTR1 = {
             raw: null, b2b: [], chart: null,
@@ -533,11 +549,18 @@
             agg: (arr, fuz) => {
                 let m = new Map(), dups=0;
                 arr.forEach(x => {
+                    // Apply Advanced Normalization Engine
                     let cI = Utils.normInv(x.i, fuz);
                     let k = `${x.g}_${cI}`;
-                    if(m.has(k)) { dups++; let e=m.get(k); e.tx+=x.tx; e.ig+=x.ig; e.cg+=x.cg; e.sg+=x.sg; e.t+=x.t; } 
-                    else { m.set(k, {...x, cI}); }
+                    
+                    if(m.has(k)) { 
+                        dups++; let e=m.get(k); 
+                        e.tx+=x.tx; e.ig+=x.ig; e.cg+=x.cg; e.sg+=x.sg; e.t+=x.t; 
+                    } else { 
+                        m.set(k, {...x, cI}); 
+                    }
                 });
+                if(dups>0) console.warn(`${dups} duplicates merged.`);
                 return Array.from(m.values());
             },
 
@@ -551,19 +574,26 @@
                     let g2bList = Recon.agg(Recon.data.g2b, fuz);
                     
                     Recon.data.out = []; 
+                    let vs = {};
+                    const gV = (g, name) => { if(!vs[g]) vs[g] = {g, p:name, tc:0, mc:0, mr:0, ls:0}; return vs[g]; };
+
+                    // Hash map for fast O(1) exact matches
                     let g2bMap = new Map();
                     g2bList.forEach(g => g2bMap.set(`${g.g}_${g.cI}`, g));
 
-                    prList.forEach((p, idx) => {
+                    prList.forEach(p => {
                         let matchedG = g2bMap.get(`${p.g}_${p.cI}`);
 
+                        // ADVANCED FUZZY MATCHING LOGIC (Prefix/Suffix/Leading Zero ignore)
                         if (!matchedG && fuz && p.g !== "NO_GSTIN_FOUND") {
                             let pNum = p.cI.replace(/[^0-9]/g, ''); 
-                            let potentials = g2bList.filter(g => g.g === p.g && !g.matched);
-                            for (let g of potentials) {
+                            let potentialMatches = g2bList.filter(g => g.g === p.g && !g.matched);
+                            
+                            for (let g of potentialMatches) {
                                 let gNum = g.cI.replace(/[^0-9]/g, '');
                                 let isFuzzy = false;
-                                if (pNum && gNum && pNum === gNum) isFuzzy = true;
+
+                                if (pNum && gNum && pNum === gNum) { isFuzzy = true; }
                                 else if (p.cI.length > 2 && g.cI.length > 2) {
                                     if (p.cI.endsWith(g.cI) || g.cI.endsWith(p.cI)) isFuzzy = true;
                                     else if (p.cI.includes(g.cI) || g.cI.includes(p.cI)) {
@@ -571,13 +601,15 @@
                                         if (/^[0-9]+$/.test(shorter) && shorter.length >= 3) isFuzzy = true;
                                     }
                                 }
+
                                 if (isFuzzy) { matchedG = g; break; }
                             }
                         }
 
                         let st = 'MISSING_IN_2B', dt = p.t;
                         if (matchedG) {
-                            matchedG.matched = true; g2bMap.delete(`${matchedG.g}_${matchedG.cI}`); 
+                            matchedG.matched = true;
+                            g2bMap.delete(`${matchedG.g}_${matchedG.cI}`); 
                             dt = p.t - matchedG.t; 
                             st = (Math.abs(dt) <= tol && Math.abs(p.tx - matchedG.tx) <= tol) ? 'MATCHED' : 'MISMATCH';
                         }
@@ -586,11 +618,12 @@
                             uid: 'row_' + Math.random().toString(36).substr(2, 9), marked: false,
                             st, g: p.g, p: p.p, i: p.i, d: p.d,
                             ptx: p.tx, pig: p.ig, pcg: p.cg, psg: p.sg, pt: p.t,
-                            gtx: matchedG?matchedG.tx:0, gig: matchedG?matchedG.ig:0, gcg: matchedG?matchedG.cg:0, gsg: matchedG?matchedG.sg:0, gt: matchedG?matchedG.t:0,
-                            dtx: p.tx - (matchedG?matchedG.tx:0), dt: dt
+                            gtx: matchedG ? matchedG.tx : 0, gig: matchedG ? matchedG.ig : 0, gcg: matchedG ? matchedG.cg : 0, gsg: matchedG ? matchedG.sg : 0, gt:  matchedG ? matchedG.t : 0,
+                            dtx: p.tx - (matchedG ? matchedG.tx : 0), dt: dt
                         });
                     });
 
+                    // Remaining Portal items
                     g2bList.forEach(g => {
                         if (!g.matched) {
                             Recon.data.out.push({
@@ -605,6 +638,8 @@
 
                     Recon.recalcDashAndVendor();
                     ['recon-dash','recon-table','recon-vendor'].forEach(id=>document.getElementById('nav-'+id).classList.remove('hidden'));
+                    
+                    Recon.renderTable(); Recon.rVen();
                     Utils.stopLoad(); UI.switchView('recon-dash');
                 }, 100);
             },
@@ -690,22 +725,36 @@
                 let uid = document.getElementById('edit-uid').value; let r = Recon.data.out.find(x => x.uid === uid); if(!r) return;
                 let tol = parseFloat(document.getElementById('rec-tol').value||0);
                 
-                r.g = document.getElementById('edit-gstin').value.toUpperCase(); r.i = document.getElementById('edit-inv').value.toUpperCase(); r.p = document.getElementById('edit-party').value;
-                r.ptx = Utils.clean(document.getElementById('edit-ptx').value); r.gtx = Utils.clean(document.getElementById('edit-gtx').value);
-                r.pt = Utils.clean(document.getElementById('edit-pt').value); r.gt = Utils.clean(document.getElementById('edit-gt').value);
+                let nG = document.getElementById('edit-gstin').value.toUpperCase().trim();
+                let nI = document.getElementById('edit-inv').value.toUpperCase().trim();
+                let nP = document.getElementById('edit-party').value.trim();
+
+                let nPtx = Utils.clean(document.getElementById('edit-ptx').value);
+                let nGtx = Utils.clean(document.getElementById('edit-gtx').value);
+                let nPt = Utils.clean(document.getElementById('edit-pt').value);
+                let nGt = Utils.clean(document.getElementById('edit-gt').value);
+
+                // Smart Merge Logic
+                let other = Recon.data.out.find(x => x.uid !== uid && x.g === nG && Utils.normInv(x.i, true) === Utils.normInv(nI, true));
                 
-                // Recalculate Differences
+                if (other) {
+                    r.ptx = nPtx === 0 ? other.ptx : nPtx;
+                    r.gtx = nGtx === 0 ? other.gtx : nGtx;
+                    r.pt = nPt === 0 ? other.pt : nPt;
+                    r.gt = nGt === 0 ? other.gt : nGt;
+                    Recon.data.out = Recon.data.out.filter(x => x.uid !== other.uid); // Delete orphan
+                } else {
+                    r.ptx = nPtx; r.gtx = nGtx; r.pt = nPt; r.gt = nGt;
+                }
+
+                r.g = nG; r.i = nI; r.p = nP || r.p;
                 r.dtx = r.ptx - r.gtx; r.dt = r.pt - r.gt;
                 
-                // Recalculate Status logically
-                if (Math.abs(r.dtx) <= tol && Math.abs(r.dt) <= tol) { r.st = 'MATCHED'; } 
+                // Recalculate Status
+                if (Math.abs(r.dtx) <= tol && Math.abs(r.dt) <= tol && r.pt > 0 && r.gt > 0) { r.st = 'MATCHED'; } 
                 else if (r.pt > 0 && r.gt === 0) { r.st = 'MISSING_IN_2B'; } 
                 else if (r.pt === 0 && r.gt > 0) { r.st = 'MISSING_IN_PR'; } 
                 else { r.st = 'MISMATCH'; }
-
-                // Zero out underlying splits to prevent export math conflicts since user edited total tax directly
-                r.pig = r.pt; r.pcg = 0; r.psg = 0; r.gig = r.gt; r.gcg = 0; r.gsg = 0;
-                r.dig = r.pig - r.gig; r.dcg = 0; r.dsg = 0;
 
                 document.getElementById('editModal').classList.add('hidden');
                 Recon.recalcDashAndVendor(); Recon.renderTable(); Recon.rVen();
