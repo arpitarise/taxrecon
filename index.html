@@ -1,742 +1,768 @@
+
 <!DOCTYPE html>
 <html lang="en" class="bg-slate-50 text-slate-800 font-sans antialiased">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GST Master Suite | Pro Analyzer & Recon</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { primary: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' } } } }
-        }
-    </script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #1d4ed8; font-weight: 700; }
-        th { position: sticky; top: 0; z-index: 10; }
-        #loadingOverlay { display: none; }
-        .row-marked { background-color: #f3e8ff !important; border-left: 4px solid #a855f7 !important; }
-        .mt-1\.5 { display: grid !important; }
-        .text-slate-700 { display: grid !important; }   
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GST Master Suite | Pro Analyzer & Recon</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+theme: { extend: { colors: { primary: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a8a' } } } }
+}
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+body { font-family: 'Inter', sans-serif; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.tab-btn.active { border-bottom: 2px solid #2563eb; color: #1d4ed8; font-weight: 700; }
+th { position: sticky; top: 0; z-index: 10; }
+#loadingOverlay { display: none; }
+.row-marked { background-color: #f3e8ff !important; border-left: 4px solid #a855f7 !important; }
+.mt-1\.5 { display: grid !important; }
+.text-slate-700 { display: grid !important; }
+</style>
 </head>
 <body class="flex h-screen overflow-hidden selection:bg-blue-200">
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-[100] flex flex-col items-center justify-center backdrop-blur-sm">
-        <svg class="animate-spin h-14 w-14 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <h2 class="text-white text-2xl font-bold tracking-wide" id="loadingText">Processing Data...</h2>
-    </div>
-
-    <!-- Mapping Modal -->
-    <div id="mappingModal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-full fade-in border border-slate-200">
-            <div class="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <div>
-                    <h2 id="map-title" class="text-2xl font-extrabold text-slate-800">Map File Columns</h2>
-                    <p class="text-sm text-slate-500 mt-1">Verify the Header Row and match your columns.</p>
-                </div>
-            </div>
-            <div class="p-8 overflow-y-auto bg-white">
-                <div class="mb-8 bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-inner">
-                    <label class="block text-sm font-bold text-blue-900 mb-3">1. Select the true Header Row:</label>
-                    <select id="map-header-row" class="w-full border border-blue-300 bg-white rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onchange="Recon.changeHeaderRow(this.value)"></select>
-                </div>
-                <label class="block text-sm font-bold text-slate-800 mb-4 border-b pb-2">2. Match Data Fields:</label>
-                <div id="map-fields-container" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"></div>
-            </div>
-            <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-4">
-                <button onclick="Recon.cancelMapping()" class="px-6 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-bold transition shadow-sm">Cancel</button>
-                <button onclick="Recon.confirmMapping()" class="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold shadow-md transition">Confirm & Save Mapping</button>
+<div id="loadingOverlay" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-[100] flex flex-col items-center justify-center backdrop-blur-sm">
+<svg class="animate-spin h-14 w-14 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+<h2 class="text-white text-2xl font-bold tracking-wide" id="loadingText">Processing Data...</h2>
+</div>
+<div id="mappingModal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-full fade-in border border-slate-200">
+        <div class="p-6 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div>
+                <h2 id="map-title" class="text-2xl font-extrabold text-slate-800">Map File Columns</h2>
+                <p class="text-sm text-slate-500 mt-1">Verify the Header Row and match your columns.</p>
             </div>
         </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col fade-in">
-            <div class="p-6 border-b border-slate-200 bg-slate-50">
-                <h2 class="text-xl font-extrabold text-slate-800">Real-Time Row Edit</h2>
-                <p class="text-sm text-slate-500 mt-1">Fix typos to instantly merge orphaned rows.</p>
+        <div class="p-8 overflow-y-auto bg-white">
+            <div class="mb-8 bg-blue-50 p-5 rounded-xl border border-blue-100 shadow-inner">
+                <label class="block text-sm font-bold text-blue-900 mb-3">1. Select the true Header Row:</label>
+                <select id="map-header-row" class="w-full border border-blue-300 bg-white rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onchange="Recon.changeHeaderRow(this.value)"></select>
             </div>
-            <div class="p-6 grid grid-cols-2 gap-5">
-                <input type="hidden" id="edit-uid">
-                <div class="col-span-2 md:col-span-1">
-                    <label class="block text-xs font-bold text-slate-600 mb-1">GSTIN</label>
-                    <input type="text" id="edit-gstin" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div class="col-span-2 md:col-span-1">
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Invoice Number</label>
-                    <input type="text" id="edit-inv" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Party Name</label>
-                    <input type="text" id="edit-party" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-blue-600 mb-1">Taxable (Books PR)</label>
-                    <input type="number" id="edit-ptx" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-indigo-600 mb-1">Taxable (Portal 2B)</label>
-                    <input type="number" id="edit-gtx" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-blue-600 mb-1">Total Tax (Books PR)</label>
-                    <input type="number" id="edit-pt" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-indigo-600 mb-1">Total Tax (Portal 2B)</label>
-                    <input type="number" id="edit-gt" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
-                </div>
-            </div>
-            <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm font-bold hover:bg-slate-50 transition">Cancel</button>
-                <button onclick="Recon.saveRowEdit()" class="px-5 py-2.5 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 font-bold transition">Save & Recalculate</button>
-            </div>
+            <label class="block text-sm font-bold text-slate-800 mb-4 border-b pb-2">2. Match Data Fields:</label>
+            <div id="map-fields-container" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"></div>
+        </div>
+        <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-4">
+            <button onclick="Recon.cancelMapping()" class="px-6 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-bold transition shadow-sm">Cancel</button>
+            <button onclick="Recon.confirmMapping()" class="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold shadow-md transition">Confirm & Save Mapping</button>
         </div>
     </div>
+</div>
 
-    <!-- Sidebar -->
-    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-20 shrink-0">
-        <div class="h-20 flex items-center px-6 border-b border-slate-800 bg-primary-900">
-            <svg class="w-8 h-8 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-            <span class="text-2xl font-black text-white tracking-wider">GST <span class="text-blue-300">PRO</span></span>
+<div id="editModal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col fade-in">
+        <div class="p-6 border-b border-slate-200 bg-slate-50">
+            <h2 class="text-xl font-extrabold text-slate-800">Real-Time Row Edit</h2>
+            <p class="text-sm text-slate-500 mt-1">Fix typos to instantly merge orphaned rows.</p>
         </div>
-        <nav class="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
-            <div class="text-[10px] font-black text-slate-500 uppercase mb-2 mt-2 tracking-widest">Outward</div>
-            <a href="#" onclick="UI.switchView('gstr1')" id="nav-gstr1" class="flex items-center px-4 py-3 rounded-lg text-white bg-primary-600 shadow-md transition-all">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> GSTR-1 Analyzer
-            </a>
-            <div class="text-[10px] font-black text-slate-500 uppercase mb-2 mt-8 tracking-widest">Inward Recon</div>
-            <a href="#" onclick="UI.switchView('recon-upload')" id="nav-recon-upload" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Upload Files
-            </a>
-            <a href="#" onclick="UI.switchView('recon-dash')" id="nav-recon-dash" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path></svg> Dashboard
-            </a>
-            <a href="#" onclick="UI.switchView('recon-table')" id="nav-recon-table" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg> Invoice Match
-            </a>
-            <a href="#" onclick="UI.switchView('recon-vendor')" id="nav-recon-vendor" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857"></path></svg> Vendor Risk
-            </a>
-        </nav>
-        <div class="p-4 bg-slate-950 text-[10px] text-slate-500 uppercase tracking-widest text-center font-bold">100% Local Persistence Enabled</div>
-    </aside>
+        <div class="p-6 grid grid-cols-2 gap-5">
+            <input type="hidden" id="edit-uid">
+            <div class="col-span-2 md:col-span-1">
+                <label class="block text-xs font-bold text-slate-600 mb-1">GSTIN</label>
+                <input type="text" id="edit-gstin" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="col-span-2 md:col-span-1">
+                <label class="block text-xs font-bold text-slate-600 mb-1">Invoice Number</label>
+                <input type="text" id="edit-inv" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm uppercase focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs font-bold text-slate-600 mb-1">Party Name</label>
+                <input type="text" id="edit-party" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-blue-600 mb-1">Taxable (Books PR)</label>
+                <input type="number" id="edit-ptx" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-indigo-600 mb-1">Taxable (Portal 2B)</label>
+                <input type="number" id="edit-gtx" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-blue-600 mb-1">Total Tax (Books PR)</label>
+                <input type="number" id="edit-pt" class="w-full border border-blue-200 bg-blue-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-indigo-600 mb-1">Total Tax (Portal 2B)</label>
+                <input type="number" id="edit-gt" class="w-full border border-indigo-200 bg-indigo-50/50 rounded-lg p-2.5 text-sm outline-none focus:border-indigo-500">
+            </div>
+        </div>
+        <div class="p-5 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+            <button onclick="document.getElementById('editModal').classList.add('hidden')" class="px-5 py-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+            <button onclick="Recon.saveRowEdit()" class="px-5 py-2.5 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 font-bold transition">Save & Recalculate</button>
+        </div>
+    </div>
+</div>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative w-full overflow-hidden">
-        <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10 shadow-sm shrink-0">
-            <h2 id="header-title" class="text-2xl font-extrabold text-slate-800 tracking-tight">GSTR-1 Analyzer</h2>
-            <button onclick="Storage.clearAndReload()" class="text-xs font-bold text-red-500 hover:text-red-700 uppercase tracking-widest flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Clear Session
-            </button>
-        </header>
+<aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-20 shrink-0">
+    <div class="h-20 flex items-center px-6 border-b border-slate-800 bg-primary-900">
+        <svg class="w-8 h-8 text-white mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        <span class="text-2xl font-black text-white tracking-wider">GST <span class="text-blue-300">PRO</span></span>
+    </div>
+    <nav class="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
+        <div class="text-[10px] font-black text-slate-500 uppercase mb-2 mt-2 tracking-widest">Outward</div>
+        <a href="#" onclick="UI.switchView('gstr1')" id="nav-gstr1" class="flex items-center px-4 py-3 rounded-lg text-white bg-primary-600 shadow-md transition-all">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> GSTR-1 Analyzer
+        </a>
+        <div class="text-[10px] font-black text-slate-500 uppercase mb-2 mt-8 tracking-widest">Inward Recon</div>
+        <a href="#" onclick="UI.switchView('recon-upload')" id="nav-recon-upload" class="flex items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> Upload Files
+        </a>
+        <a href="#" onclick="UI.switchView('recon-dash')" id="nav-recon-dash" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path></svg> Dashboard
+        </a>
+        <a href="#" onclick="UI.switchView('recon-table')" id="nav-recon-table" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg> Invoice Match
+        </a>
+        <a href="#" onclick="UI.switchView('recon-vendor')" id="nav-recon-vendor" class="hidden items-center px-4 py-3 rounded-lg hover:bg-slate-800 transition-all font-medium">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857"></path></svg> Vendor Risk
+        </a>
+    </nav>
+    <div class="p-4 bg-slate-950 text-[10px] text-slate-500 uppercase tracking-widest text-center font-bold">100% Local Persistence Enabled</div>
+</aside>
 
-        <div class="flex-1 overflow-y-auto p-8">
-            <!-- View: GSTR-1 -->
-            <div id="view-gstr1" class="view-section fade-in">
-                <div id="g1-upload-sec" class="mt-12 max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all group" onclick="document.getElementById('g1-file').click()">
-                    <div class="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform"><svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></div>
-                    <h2 class="text-3xl font-extrabold text-slate-800 mb-3">Upload GSTR-1 JSON</h2>
-                    <p class="text-slate-500 font-medium">Click or Drop your Tally JSON export here</p>
-                    <input type="file" id="g1-file" accept=".json" class="hidden" onchange="GSTR1.process(event)">
+<main class="flex-1 flex flex-col relative w-full overflow-hidden">
+    <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10 shadow-sm shrink-0">
+        <h2 id="header-title" class="text-2xl font-extrabold text-slate-800 tracking-tight">GSTR-1 Analyzer</h2>
+        <button onclick="Storage.clearAndReload()" class="text-xs font-bold text-red-500 hover:text-red-700 uppercase tracking-widest flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Clear Session
+        </button>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-8">
+        <div id="view-gstr1" class="view-section fade-in">
+            <div id="g1-upload-sec" class="mt-12 max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all group" onclick="document.getElementById('g1-file').click()">
+                <div class="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform"><svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg></div>
+                <h2 class="text-3xl font-extrabold text-slate-800 mb-3">Upload GSTR-1 JSON</h2>
+                <p class="text-slate-500 font-medium">Click or Drop your Tally JSON export here</p>
+                <input type="file" id="g1-file" accept=".json" class="hidden" onchange="GSTR1.process(event)">
+            </div>
+
+            <div id="g1-dash-sec" class="hidden">
+                <div class="flex justify-end gap-4 mb-6">
+                    <button onclick="GSTR1.exportCSV()" class="bg-white border border-slate-300 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">Export Full CSV</button>
                 </div>
-
-                <div id="g1-dash-sec" class="hidden">
-                    <div class="flex justify-end gap-4 mb-6">
-                        <button onclick="GSTR1.exportCSV()" class="bg-white border border-slate-300 px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50 transition">Export Full CSV</button>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Taxable</p><h3 class="text-xl font-black text-blue-600 mt-1" id="g1-val">₹0</h3></div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Tax</p><h3 class="text-xl font-black text-red-500 mt-1" id="g1-tax">₹0</h3></div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Invoices</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-inv">0</h3></div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">B2B Count</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-b2b">0</h3></div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">B2C Count</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-b2c">0</h3></div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Cr/Dr Notes</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-cdnr">0</h3></div>
+                </div>
+                <div class="border-b border-slate-200 mb-6 flex gap-4">
+                    <button class="g1-tab tab-btn active px-4 py-3 text-sm transition" onclick="UI.switchTab('g1', 'summary')">Validation & Summary</button>
+                    <button class="g1-tab tab-btn px-4 py-3 text-sm transition text-slate-500 hover:text-slate-800" onclick="UI.switchTab('g1', 'data')">B2B Line Details</button>
+                </div>
+                <div id="g1-tab-summary" class="g1-panel grid lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-lg font-extrabold text-slate-800 mb-4 border-b pb-3">Validation Report</h2>
+                        <div id="g1-log" class="space-y-3 max-h-[350px] overflow-y-auto"></div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Taxable</p><h3 class="text-xl font-black text-blue-600 mt-1" id="g1-val">₹0</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Tax</p><h3 class="text-xl font-black text-red-500 mt-1" id="g1-tax">₹0</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Total Invoices</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-inv">0</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">B2B Count</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-b2b">0</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">B2C Count</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-b2c">0</h3></div>
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] text-slate-500 font-black uppercase tracking-wider">Cr/Dr Notes</p><h3 class="text-xl font-black text-slate-800 mt-1" id="g1-cdnr">0</h3></div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-lg font-extrabold text-slate-800 mb-4 border-b pb-3">Tax Breakdown</h2>
+                        <table class="w-full text-sm text-right"><thead class="bg-slate-50 border-b"><tr><th class="px-3 py-2 text-left font-bold text-slate-600">Rate</th><th class="px-3 py-2 font-bold text-slate-600">Taxable</th><th class="px-3 py-2 font-bold text-slate-600">Total Tax</th></tr></thead><tbody id="g1-tax-tbl" class="divide-y divide-slate-100"></tbody></table>
+                        <div class="h-48 mt-6"><canvas id="g1-chart"></canvas></div>
                     </div>
-                    <div class="border-b border-slate-200 mb-6 flex gap-4">
-                        <button class="g1-tab tab-btn active px-4 py-3 text-sm transition" onclick="UI.switchTab('g1', 'summary')">Validation & Summary</button>
-                        <button class="g1-tab tab-btn px-4 py-3 text-sm transition text-slate-500 hover:text-slate-800" onclick="UI.switchTab('g1', 'data')">B2B Line Details</button>
-                    </div>
-                    <div id="g1-tab-summary" class="g1-panel grid lg:grid-cols-2 gap-8">
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h2 class="text-lg font-extrabold text-slate-800 mb-4 border-b pb-3">Validation Report</h2>
-                            <div id="g1-log" class="space-y-3 max-h-[350px] overflow-y-auto"></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                            <h2 class="text-lg font-extrabold text-slate-800 mb-4 border-b pb-3">Tax Breakdown</h2>
-                            <table class="w-full text-sm text-right"><thead class="bg-slate-50 border-b"><tr><th class="px-3 py-2 text-left font-bold text-slate-600">Rate</th><th class="px-3 py-2 font-bold text-slate-600">Taxable</th><th class="px-3 py-2 font-bold text-slate-600">Total Tax</th></tr></thead><tbody id="g1-tax-tbl" class="divide-y divide-slate-100"></tbody></table>
-                            <div class="h-48 mt-6"><canvas id="g1-chart"></canvas></div>
-                        </div>
-                    </div>
-                    <div id="g1-tab-data" class="g1-panel hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div class="p-4 border-b bg-slate-50"><input type="text" id="g1-search" placeholder="Search GSTIN or Invoice..." class="px-4 py-2 border rounded-lg w-72 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onkeyup="GSTR1.renderB2B()"></div>
-                        <div class="overflow-y-auto max-h-[500px]">
-                            <table class="w-full text-sm text-right whitespace-nowrap"><thead class="bg-white border-b shadow-sm"><tr><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">GSTIN</th><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">Invoice No</th><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">Date</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">Taxable</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">Rate</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">IGST</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">CGST</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">SGST</th></tr></thead><tbody id="g1-b2b-tbody" class="divide-y divide-slate-100"></tbody></table>
-                        </div>
+                </div>
+                <div id="g1-tab-data" class="g1-panel hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b bg-slate-50"><input type="text" id="g1-search" placeholder="Search GSTIN or Invoice..." class="px-4 py-2 border rounded-lg w-72 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" onkeyup="GSTR1.renderB2B()"></div>
+                    <div class="overflow-y-auto max-h-[500px]">
+                        <table class="w-full text-sm text-right whitespace-nowrap"><thead class="bg-white border-b shadow-sm"><tr><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">GSTIN</th><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">Invoice No</th><th class="p-4 text-left text-slate-500 font-bold uppercase text-[10px] tracking-wider">Date</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">Taxable</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">Rate</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">IGST</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">CGST</th><th class="p-4 text-slate-500 font-bold uppercase text-[10px] tracking-wider">SGST</th></tr></thead><tbody id="g1-b2b-tbody" class="divide-y divide-slate-100"></tbody></table>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- View: Recon Upload -->
-            <div id="view-recon-upload" class="view-section hidden fade-in max-w-5xl mx-auto mt-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                    <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 text-center cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all" ondragover="event.preventDefault();" ondrop="Recon.handleDrop(event, 'pr')" onclick="document.getElementById('f-pr').click()">
-                        <div class="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-5"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v13m0-13c-1.168-.777-2.754-1.253-4.5-1.253S4.168 5.223 3 6v13c1.168-.777 2.754-1.253 4.5-1.253s3.332.476 4.5 1.253m0-13c1.168-.777-2.754-1.253 4.5-1.253s3.332.476 4.5 1.253v13c-1.168-.777-2.754-1.253-4.5-1.253s-3.332.476-4.5 1.253"></path></svg></div>
-                        <h3 class="font-extrabold text-xl mb-1">Purchase Register</h3>
-                        <p class="text-sm text-slate-500 mb-5">Drop Tally Excel / CSV Export</p>
-                        <input type="file" id="f-pr" accept=".csv, .xlsx, .xls" class="hidden" onchange="Recon.processFile(event, 'pr')">
-                        <div id="pr-status" class="mt-2 text-sm font-bold text-green-600 hidden bg-green-50 p-2 rounded"></div>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 text-center cursor-pointer hover:border-indigo-400 hover:shadow-xl transition-all" ondragover="event.preventDefault();" ondrop="Recon.handleDrop(event, 'g2b')" onclick="document.getElementById('f-g2b').click()">
-                        <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-5"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg></div>
-                        <h3 class="font-extrabold text-xl mb-1">GSTR-2B Portal</h3>
-                        <p class="text-sm text-slate-500 mb-5">Drop GST Portal Excel Export</p>
-                        <input type="file" id="f-g2b" accept=".csv, .xlsx, .xls" class="hidden" onchange="Recon.processFile(event, 'g2b')">
-                        <div id="g2b-status" class="mt-2 text-sm font-bold text-green-600 hidden bg-green-50 p-2 rounded"></div>
-                    </div>
+        <div id="view-recon-upload" class="view-section hidden fade-in max-w-5xl mx-auto mt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 text-center cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all" ondragover="event.preventDefault();" ondrop="Recon.handleDrop(event, 'pr')" onclick="document.getElementById('f-pr').click()">
+                    <div class="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-5"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v13m0-13c-1.168-.777-2.754-1.253-4.5-1.253S4.168 5.223 3 6v13c1.168-.777 2.754-1.253 4.5-1.253s3.332.476 4.5 1.253m0-13c1.168-.777-2.754-1.253 4.5-1.253s3.332.476 4.5 1.253v13c-1.168-.777-2.754-1.253-4.5-1.253s-3.332.476-4.5 1.253"></path></svg></div>
+                    <h3 class="font-extrabold text-xl mb-1">Purchase Register</h3>
+                    <p class="text-sm text-slate-500 mb-5">Drop Tally Excel / CSV Export</p>
+                    <input type="file" id="f-pr" accept=".csv, .xlsx, .xls" class="hidden" onchange="Recon.processFile(event, 'pr')">
+                    <div id="pr-status" class="mt-2 text-sm font-bold text-green-600 hidden bg-green-50 p-2 rounded"></div>
                 </div>
-                <div class="bg-white p-8 rounded-2xl border border-slate-200 mb-10 max-w-3xl mx-auto shadow-sm">
-                    <h4 class="font-extrabold text-slate-800 mb-6 text-center text-lg">Reconciliation Engine Settings</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-10 text-center cursor-pointer hover:border-indigo-400 hover:shadow-xl transition-all" ondragover="event.preventDefault();" ondrop="Recon.handleDrop(event, 'g2b')" onclick="document.getElementById('f-g2b').click()">
+                    <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-5"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg></div>
+                    <h3 class="font-extrabold text-xl mb-1">GSTR-2B Portal</h3>
+                    <p class="text-sm text-slate-500 mb-5">Drop GST Portal Excel Export</p>
+                    <input type="file" id="f-g2b" accept=".csv, .xlsx, .xls" class="hidden" onchange="Recon.processFile(event, 'g2b')">
+                    <div id="g2b-status" class="mt-2 text-sm font-bold text-green-600 hidden bg-green-50 p-2 rounded"></div>
+                </div>
+            </div>
+            <div class="bg-white p-8 rounded-2xl border border-slate-200 mb-10 max-w-3xl mx-auto shadow-sm">
+                <h4 class="font-extrabold text-slate-800 mb-6 text-center text-lg">Reconciliation Engine Settings</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Match Tolerance (₹)</label>
+                        <input type="number" id="rec-tol" value="5" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-base outline-none focus:border-blue-500 shadow-sm transition">
+                    </div>
+                    <div class="flex items-center justify-between border border-slate-300 rounded-lg px-5 py-2 shadow-sm bg-slate-50">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Match Tolerance (₹)</label>
-                            <input type="number" id="rec-tol" value="5" class="w-full border border-slate-300 rounded-lg px-4 py-2 text-base outline-none focus:border-blue-500 shadow-sm transition">
+                            <span class="text-sm font-bold text-slate-800 block">Advanced Fuzzy Match</span>
+                            <span class="text-[10px] text-slate-500 block leading-tight mt-0.5">Ignores format diffs (25-26 -> 2526).</span>
                         </div>
-                        <div class="flex items-center justify-between border border-slate-300 rounded-lg px-5 py-2 shadow-sm bg-slate-50">
-                            <div>
-                                <span class="text-sm font-bold text-slate-800 block">Advanced Fuzzy Match</span>
-                                <span class="text-[10px] text-slate-500 block leading-tight mt-0.5">Ignores format diffs (25-26 -> 2526).</span>
-                            </div>
-                            <input type="checkbox" id="rec-fuz" checked class="w-5 h-5 cursor-pointer accent-blue-600">
-                        </div>
+                        <input type="checkbox" id="rec-fuz" checked class="w-5 h-5 cursor-pointer accent-blue-600">
                     </div>
                 </div>
-                <div class="text-center">
-                    <button id="btn-run" onclick="Recon.runEngine()" disabled class="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-12 py-4 rounded-xl font-black text-lg shadow-2xl transition-all transform hover:-translate-y-1">🚀 Ignite Reconciliation</button>
-                </div>
             </div>
-
-            <!-- View: Recon Dashboard -->
-            <div id="view-recon-dash" class="view-section hidden fade-in max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-green-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matched</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-m-c">0</p><p class="text-sm text-green-600 font-bold mt-2 bg-green-50 inline-block px-2 py-1 rounded" id="dash-m-v">₹0 Safe</p></div>
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-yellow-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mismatched</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-mm-c">0</p><p class="text-sm text-yellow-600 font-bold mt-2 bg-yellow-50 inline-block px-2 py-1 rounded" id="dash-mm-v">₹0 Diff</p></div>
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-red-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Missing in 2B</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-m2b-c">0</p><p class="text-sm text-red-600 font-bold mt-2 bg-red-50 inline-block px-2 py-1 rounded" id="dash-m2b-v">₹0 At Risk</p></div>
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-blue-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Missing in Books</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-mpr-c">0</p><p class="text-sm text-blue-600 font-bold mt-2 bg-blue-50 inline-block px-2 py-1 rounded" id="dash-mpr-v">₹0 Unclaimed</p></div>
-                </div>
-                <div class="bg-white p-8 rounded-2xl shadow-md border border-slate-200 max-w-md mx-auto"><canvas id="rec-chart"></canvas></div>
+            <div class="text-center">
+                <button id="btn-run" onclick="Recon.runEngine()" disabled class="bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-12 py-4 rounded-xl font-black text-lg shadow-2xl transition-all transform hover:-translate-y-1">🚀 Ignite Reconciliation</button>
             </div>
+        </div>
 
-            <!-- View: Recon Table -->
-            <div id="view-recon-table" class="view-section hidden fade-in">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-wrap gap-4 items-center justify-between">
-                    <div class="flex gap-4 flex-1">
-                        <select id="rec-flt" class="border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" onchange="Recon.renderTable()">
-                            <option value="ALL">All Statuses</option>
-                            <option value="MATCHED">Matched</option>
-                            <option value="AUTO_CORRECTED">Auto-Corrected</option>
-                            <option value="MISMATCH">Mismatch</option>
-                            <option value="MISSING_IN_2B">Missing in 2B</option>
-                            <option value="MISSING_IN_PR">Missing in Books</option>
-                        </select>
-                        <input type="text" id="rec-src" placeholder="Search GSTIN, Party Name, or Invoice..." class="flex-1 max-w-md border border-slate-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" onkeyup="Recon.renderTable()">
-                    </div>
-                    <button onclick="Recon.exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all flex items-center gap-2">
+        <div id="view-recon-dash" class="view-section hidden fade-in max-w-[90rem] mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-green-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matched</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-m-c">0</p><p class="text-sm text-green-600 font-bold mt-2 bg-green-50 inline-block px-2 py-1 rounded" id="dash-m-v">₹0 Safe</p></div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-yellow-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mismatched</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-mm-c">0</p><p class="text-sm text-yellow-600 font-bold mt-2 bg-yellow-50 inline-block px-2 py-1 rounded" id="dash-mm-v">₹0 Diff</p></div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-orange-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">GSTIN Mismatch</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-gm-c">0</p><p class="text-sm text-orange-600 font-bold mt-2 bg-orange-50 inline-block px-2 py-1 rounded" id="dash-gm-v">₹0 Risk</p></div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-red-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Missing in 2B</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-m2b-c">0</p><p class="text-sm text-red-600 font-bold mt-2 bg-red-50 inline-block px-2 py-1 rounded" id="dash-m2b-v">₹0 At Risk</p></div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 border-b-4 border-b-blue-500 shadow-md"><h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Missing in Books</h4><p class="text-3xl font-black text-slate-800 mt-2" id="dash-mpr-c">0</p><p class="text-sm text-blue-600 font-bold mt-2 bg-blue-50 inline-block px-2 py-1 rounded" id="dash-mpr-v">₹0 Unclaimed</p></div>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-md border border-slate-200 max-w-md mx-auto"><canvas id="rec-chart"></canvas></div>
+        </div>
+
+        <div id="view-recon-table" class="view-section hidden fade-in max-w-[100rem] mx-auto">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col gap-4 items-center justify-between xl:flex-row">
+                <div id="rec-filters" class="flex flex-wrap gap-2 w-full xl:w-auto">
+                    <label class="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-green-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="MATCHED" checked class="accent-green-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-green-800">Matched</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="AUTO_CORRECTED" checked class="accent-purple-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-purple-800">Auto-Corrected</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="GSTIN_MISMATCH" checked class="accent-orange-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-orange-800">GSTIN Mismatch</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-yellow-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="MISMATCH" checked class="accent-yellow-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-yellow-800">Mismatch</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-red-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="MISSING_IN_2B" checked class="accent-red-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-red-800">Missing in 2B</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors shadow-sm">
+                        <input type="checkbox" value="MISSING_IN_PR" checked class="accent-blue-600 w-4 h-4" onchange="Recon.renderTable()">
+                        <span class="text-xs font-bold text-blue-800">Missing in Books</span>
+                    </label>
+                </div>
+                <div class="flex gap-4 w-full xl:w-auto">
+                    <input type="text" id="rec-src" placeholder="Search GSTIN, Party Name, or Invoice..." class="flex-1 min-w-[300px] border border-slate-300 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" onkeyup="Recon.renderTable()">
+                    <button onclick="Recon.exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all flex items-center gap-2 whitespace-nowrap">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Export Advanced Excel
                     </button>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                    <div class="max-h-[650px] overflow-y-auto">
-                        <table class="w-full text-sm text-right whitespace-nowrap">
-                            <thead class="bg-slate-50 border-b border-slate-200 shadow-sm">
-                                <tr>
-                                    <th class="p-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
-                                    <th class="p-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">GSTIN & Party Name</th>
-                                    <th class="p-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">Invoice & Date</th>
-                                    <th class="p-4 text-[10px] font-black text-blue-600 uppercase tracking-wider bg-blue-50/50">Taxable(PR)</th>
-                                    <th class="p-4 text-[10px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50">Taxable(2B)</th>
-                                    <th class="p-4 text-[10px] font-black text-blue-600 uppercase tracking-wider bg-blue-50/50">Tax(PR)</th>
-                                    <th class="p-4 text-[10px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50">Tax(2B)</th>
-                                    <th class="p-4 text-[10px] font-black text-red-500 uppercase tracking-wider">Diff Tax</th>
-                                    <th class="p-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rec-tbody" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
-
-            <!-- View: Vendor Risk -->
-            <div id="view-recon-vendor" class="view-section hidden fade-in max-w-6xl mx-auto">
-                <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                    <div class="max-h-[650px] overflow-y-auto">
-                        <table class="w-full text-sm whitespace-nowrap">
-                            <thead class="bg-slate-50 border-b border-slate-200 shadow-sm">
-                                <tr>
-                                    <th class="p-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">Supplier Info</th>
-                                    <th class="p-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Invoices</th>
-                                    <th class="p-5 text-center text-[10px] font-black text-green-600 uppercase tracking-wider">Match</th>
-                                    <th class="p-5 text-center text-[10px] font-black text-red-500 uppercase tracking-wider">Missing in 2B</th>
-                                    <th class="p-5 text-right text-[10px] font-black text-red-600 uppercase tracking-wider">ITC At Risk (Not Filed)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rec-ven-tbody" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
+            <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div class="max-h-[650px] overflow-y-auto">
+                    <table class="w-full text-sm text-right whitespace-nowrap">
+                        <thead class="bg-slate-50 border-b border-slate-200 shadow-sm">
+                            <tr>
+                                <th class="p-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                                <th class="p-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">GSTIN & Party Name</th>
+                                <th class="p-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">Invoice & Date</th>
+                                <th class="p-4 text-[10px] font-black text-blue-600 uppercase tracking-wider bg-blue-50/50">Taxable(PR)</th>
+                                <th class="p-4 text-[10px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50">Taxable(2B)</th>
+                                <th class="p-4 text-[10px] font-black text-blue-600 uppercase tracking-wider bg-blue-50/50">Tax(PR)</th>
+                                <th class="p-4 text-[10px] font-black text-indigo-600 uppercase tracking-wider bg-indigo-50/50">Tax(2B)</th>
+                                <th class="p-4 text-[10px] font-black text-red-500 uppercase tracking-wider">Diff Tax</th>
+                                <th class="p-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rec-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
-    </main>
 
-    <script>
-        // --- Persistence Layer ---
-        const Storage = {
-            KEYS: { GSTR1: 'gst_pro_g1', RECON: 'gst_pro_rec', RECON_OUT: 'gst_pro_out', VIEW: 'gst_pro_view' },
-            save: (key, data) => {
-                try { localStorage.setItem(key, JSON.stringify(data)); } 
-                catch(e) { console.warn("Local storage full, persistence might be limited."); }
-            },
-            get: (key) => {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : null;
-            },
-            clearAndReload: () => {
-                if(confirm("This will delete all current data and reset the tool. Proceed?")) {
-                    localStorage.clear();
-                    location.reload();
+        <div id="view-recon-vendor" class="view-section hidden fade-in max-w-6xl mx-auto">
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="max-h-[650px] overflow-y-auto">
+                    <table class="w-full text-sm whitespace-nowrap">
+                        <thead class="bg-slate-50 border-b border-slate-200 shadow-sm">
+                            <tr>
+                                <th class="p-5 text-left text-[10px] font-black text-slate-500 uppercase tracking-wider">Supplier Info</th>
+                                <th class="p-5 text-center text-[10px] font-black text-slate-500 uppercase tracking-wider">Invoices</th>
+                                <th class="p-5 text-center text-[10px] font-black text-green-600 uppercase tracking-wider">Match</th>
+                                <th class="p-5 text-center text-[10px] font-black text-red-500 uppercase tracking-wider">Missing in 2B</th>
+                                <th class="p-5 text-right text-[10px] font-black text-red-600 uppercase tracking-wider">ITC At Risk (Not Filed)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rec-ven-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    const Storage = {
+        KEYS: { GSTR1: 'gst_pro_g1', RECON: 'gst_pro_rec', RECON_OUT: 'gst_pro_out', VIEW: 'gst_pro_view' },
+        save: (key, data) => {
+            try { localStorage.setItem(key, JSON.stringify(data)); } 
+            catch(e) {}
+        },
+        get: (key) => {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : null;
+        },
+        clearAndReload: () => {
+            if(confirm("This will delete all current data and reset the tool. Proceed?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    };
+
+    const Utils = {
+        curr: (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0),
+        clean: (v) => isNaN(parseFloat(String(v).replace(/[^0-9.-]/g,''))) ? 0 : parseFloat(String(v).replace(/[^0-9.-]/g,'')),
+        escapeCSV: (v) => { let s = String(v??''); return s.includes(',')||s.includes('"')||s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; },
+        load: (msg) => { document.getElementById('loadingText').innerText = msg; document.getElementById('loadingOverlay').style.display='flex'; },
+        stopLoad: () => document.getElementById('loadingOverlay').style.display='none',
+        normDate: (d) => {
+            if(!d) return '';
+            let s = String(d).trim();
+            if(!isNaN(s) && Number(s) > 30000) { 
+                let dt = new Date((Number(s) - 25569) * 86400 * 1000);
+                return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
+            }
+            const mth = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+            let m = s.match(/(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2,4})/); 
+            if(m) return `${m[1].padStart(2,'0')}-${mth[m[2].toLowerCase()]||'01'}-${m[3].length===2?'20'+m[3]:m[3]}`;
+            let p = s.split(/[-/]/); 
+            if(p.length===3) return `${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}-${p[2].length===2?'20'+p[2]:p[2]}`;
+            return s;
+        },
+        normInv: (inv, fuz) => {
+            let s = String(inv).toUpperCase().trim();
+            if (!fuz) return s;
+            s = s.replace(/20(\d{2})[-/]?20(\d{2})/g, '$1$2').replace(/20(\d{2})[-/]?(\d{2})/g, '$1$2').replace(/(\d{2})[-/](\d{2})/g, '$1$2');
+            s = s.replace(/([^1-9])0+([1-9])/g, '$1$2').replace(/^0+/, '').replace(/[^A-Z0-9]/g, '');
+            return s;
+        },
+        normalizeInvoice: (inv) => {
+            if (!inv) return '';
+            let str = String(inv).trim();
+            let parts = str.split('/');
+            let isYearRange = (p) => /^\d{4}-\d{2}$/.test(p.trim()) || /^\d{2}-\d{2}$/.test(p.trim());
+            let meaningful = parts.filter(p => !isYearRange(p));
+            let numericParts = meaningful.filter(p => /^\d+$/.test(p.trim()));
+            if (numericParts.length > 0) return String(parseInt(numericParts[numericParts.length - 1], 10));
+            return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+        },
+        parseDate: (dateStr) => {
+            if (!dateStr) return null;
+            let parts = dateStr.split('-');
+            if (parts.length !== 3) return null;
+            let[d, m, y] = parts.map(Number);
+            return new Date(y, m - 1, d);
+        },
+        daysDiff: (dateA, dateB) => {
+            if (!dateA || !dateB) return 9999;
+            return Math.abs((dateA - dateB) / (1000 * 60 * 60 * 24));
+        },
+        amountClose: (a, b, tol) => {
+            let absDiff = Math.abs(a - b);
+            return absDiff <= tol || (absDiff / Math.max(Math.abs(a), Math.abs(b), 1)) <= 0.005;
+        },
+        levenshtein: (s1, s2) => {
+            let m = s1.length, n = s2.length;
+            let dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (s1[i - 1] === s2[j - 1]) dp[i][j] = dp[i - 1][j - 1];
+                    else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
                 }
             }
-        };
+            return dp[m][n];
+        }
+    };
 
-        const Utils = {
-            curr: (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(v || 0),
-            clean: (v) => isNaN(parseFloat(String(v).replace(/[^0-9.-]/g,''))) ? 0 : parseFloat(String(v).replace(/[^0-9.-]/g,'')),
-            escapeCSV: (v) => { let s = String(v??''); return s.includes(',')||s.includes('"')||s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; },
-            load: (msg) => { document.getElementById('loadingText').innerText = msg; document.getElementById('loadingOverlay').style.display='flex'; },
-            stopLoad: () => document.getElementById('loadingOverlay').style.display='none',
-            normDate: (d) => {
-                if(!d) return '';
-                let s = String(d).trim();
-                if(!isNaN(s) && Number(s) > 30000) { 
-                    let dt = new Date((Number(s) - 25569) * 86400 * 1000);
-                    return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
-                }
-                const mth = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
-                let m = s.match(/(\d{1,2})[-/]([a-zA-Z]{3})[-/](\d{2,4})/); 
-                if(m) return `${m[1].padStart(2,'0')}-${mth[m[2].toLowerCase()]||'01'}-${m[3].length===2?'20'+m[3]:m[3]}`;
-                let p = s.split(/[-/]/); 
-                if(p.length===3) return `${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}-${p[2].length===2?'20'+p[2]:p[2]}`;
-                return s;
-            },
-            normInv: (inv, fuz) => {
-                let s = String(inv).toUpperCase().trim();
-                if (!fuz) return s;
-                s = s.replace(/20(\d{2})[-/]?20(\d{2})/g, '$1$2').replace(/20(\d{2})[-/]?(\d{2})/g, '$1$2').replace(/(\d{2})[-/](\d{2})/g, '$1$2');
-                s = s.replace(/([^1-9])0+([1-9])/g, '$1$2').replace(/^0+/, '').replace(/[^A-Z0-9]/g, '');
-                return s;
-            },
-            normalizeInvoice: (inv) => {
-                if (!inv) return '';
-                let str = String(inv).trim();
-                let parts = str.split('/');
-                let isYearRange = (p) => /^\d{4}-\d{2}$/.test(p.trim()) || /^\d{2}-\d{2}$/.test(p.trim());
-                let meaningful = parts.filter(p => !isYearRange(p));
-                let numericParts = meaningful.filter(p => /^\d+$/.test(p.trim()));
-                if (numericParts.length > 0) return String(parseInt(numericParts[numericParts.length - 1], 10));
-                return str.toLowerCase().replace(/[^a-z0-9]/g, '');
-            },
-            parseDate: (dateStr) => {
-                if (!dateStr) return null;
-                let parts = dateStr.split('-');
-                if (parts.length !== 3) return null;
-                let[d, m, y] = parts.map(Number);
-                return new Date(y, m - 1, d);
-            },
-            daysDiff: (dateA, dateB) => {
-                if (!dateA || !dateB) return 9999;
-                return Math.abs((dateA - dateB) / (1000 * 60 * 60 * 24));
-            },
-            amountClose: (a, b, tol) => {
-                let absDiff = Math.abs(a - b);
-                return absDiff <= tol || (absDiff / Math.max(Math.abs(a), Math.abs(b), 1)) <= 0.005;
-            },
-            levenshtein: (s1, s2) => {
-                let m = s1.length, n = s2.length;
-                let dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
-                for (let i = 1; i <= m; i++) {
-                    for (let j = 1; j <= n; j++) {
-                        if (s1[i - 1] === s2[j - 1]) dp[i][j] = dp[i - 1][j - 1];
-                        else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-                    }
-                }
-                return dp[m][n];
+    const UI = {
+        switchView: (vid) => {
+            document.querySelectorAll('.view-section').forEach(e => e.classList.add('hidden'));
+            document.querySelectorAll('nav a').forEach(e => e.classList.remove('bg-primary-600', 'text-white'));
+            document.getElementById('view-'+vid).classList.remove('hidden');
+            document.getElementById('nav-'+vid).classList.add('bg-primary-600', 'text-white');
+            const t = {'gstr1':'GSTR-1 Analyzer', 'recon-upload':'ITC Recon: Upload & Map', 'recon-dash':'ITC Recon: Dashboard', 'recon-table':'ITC Recon: Details', 'recon-vendor':'ITC Recon: Vendor Risk'};
+            document.getElementById('header-title').innerText = t[vid] || 'GST Suite';
+            Storage.save(Storage.KEYS.VIEW, vid);
+        },
+        switchTab: (pfx, tab) => {
+            document.querySelectorAll(`.${pfx}-tab`).forEach(b => b.classList.remove('active', 'text-blue-600', 'text-slate-500'));
+            document.querySelectorAll(`.${pfx}-panel`).forEach(c => c.classList.add('hidden'));
+            event.target.classList.add('active', 'text-blue-600');
+            document.getElementById(`${pfx}-tab-${tab}`).classList.remove('hidden');
+        }
+    };
+
+    const GSTR1 = {
+        raw: null, b2b:[], chart: null,
+        process: (e) => {
+            let f = e.target.files[0]; if(!f || !f.name.endsWith('.json')) return alert("Upload JSON only");
+            Utils.load("Parsing GSTR-1...");
+            let r = new FileReader();
+            r.onload = (ev) => {
+                try { 
+                    let j = JSON.parse(ev.target.result); 
+                    GSTR1.raw = {}; for(let k in j) GSTR1.raw[k.toLowerCase()] = j[k]; 
+                    setTimeout(GSTR1.extract, 50); 
+                } catch(err) { Utils.stopLoad(); alert("Invalid JSON Format"); }
+            }; r.readAsText(f);
+        },
+        extract: () => {
+            let r = GSTR1.raw; GSTR1.b2b =[];
+            (r.b2b||[]).forEach(b => (b.inv||[]).forEach(i => (i.itms||[]).forEach(it => {
+                let d = it.itm_det||{};
+                GSTR1.b2b.push({g:b.ctin||'', i:i.inum||'', dt:i.idt||'', tx:Utils.clean(d.txval), rt:Utils.clean(d.rt), ig:Utils.clean(d.iamt), cg:Utils.clean(d.camt), sg:Utils.clean(d.samt)});
+            })));
+            GSTR1.runValidation();
+        },
+        runValidation: () => {
+            let tTx=0, tTax=0, cdnr=0, b2c=0, logs=[], tr={};
+            const addT = (rt, tx, tax) => { tTx+=tx; tTax+=tax; let k=rt.toString(); if(!tr[k]&&k!=='0')k='Other'; if(!tr[k])tr[k]={v:0,t:0}; tr[k].v+=tx; tr[k].t+=tax; };
+            GSTR1.b2b.forEach(x => {
+                let tax = x.ig+x.cg+x.sg; addT(x.rt, x.tx, tax);
+                if(x.tx===0 && tax>0) logs.push(`❌ ERROR: Inv ${x.i} has zero taxable but tax applied.`);
+                if(x.g && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(x.g)) logs.push(`❌ ERROR: Bad GSTIN: ${x.g}`);
+            });
+            (GSTR1.raw.b2cl||[]).forEach(p => (p.inv||[]).forEach(i => { b2c++; (i.itms||[]).forEach(it => { let d=it.itm_det||{}; addT(d.rt, Utils.clean(d.txval), Utils.clean(d.iamt)); }); }));
+            (GSTR1.raw.b2cs||[]).forEach(i => { b2c++; addT(i.rt, Utils.clean(i.txval), Utils.clean(i.iamt)+Utils.clean(i.camt)+Utils.clean(i.samt)); });
+            (GSTR1.raw.cdnr||[]).forEach(x => cdnr+=(x.nt||[]).length);
+            (GSTR1.raw.cdnur||[]).forEach(x => cdnr+=(x.nt||[]).length);
+            
+            document.getElementById('g1-val').innerText = Utils.curr(tTx); document.getElementById('g1-tax').innerText = Utils.curr(tTax);
+            document.getElementById('g1-inv').innerText =[...new Set(GSTR1.b2b.map(x=>x.i))].length + b2c;
+            document.getElementById('g1-b2b').innerText =[...new Set(GSTR1.b2b.map(x=>x.i))].length;
+            document.getElementById('g1-b2c').innerText = b2c; document.getElementById('g1-cdnr').innerText = cdnr;
+            document.getElementById('g1-log').innerHTML = logs.length ? logs.map(l=>`<div class="text-sm bg-red-50 text-red-900 border border-red-100 p-2.5 rounded-lg font-bold">${l}</div>`).join('') : '<div class="text-green-600 font-bold p-3 bg-green-50 rounded-lg">✅ Structural Validation Passed Perfectly.</div>';
+            
+            let lbl=[], val=[]; document.getElementById('g1-tax-tbl').innerHTML='';
+            for(let k in tr) { if(tr[k].v>0) { lbl.push(k+'%'); val.push(tr[k].v); document.getElementById('g1-tax-tbl').innerHTML += `<tr><td class="p-3 text-left font-bold text-slate-700">${k}%</td><td class="p-3">${tr[k].v.toFixed(2)}</td><td class="p-3">${tr[k].t.toFixed(2)}</td></tr>`; } }
+            
+            if(GSTR1.chart) GSTR1.chart.destroy();
+            GSTR1.chart = new Chart(document.getElementById('g1-chart'), { type:'bar', data: { labels:lbl, datasets:[{label:'Taxable', data:val, backgroundColor:'#3b82f6', borderRadius:4}] }});
+            
+            GSTR1.renderB2B();
+            document.getElementById('g1-upload-sec').classList.add('hidden');
+            document.getElementById('g1-dash-sec').classList.remove('hidden');
+            
+            Storage.save(Storage.KEYS.GSTR1, { b2b: GSTR1.b2b, raw: GSTR1.raw });
+            Utils.stopLoad();
+        },
+        renderB2B: () => {
+            let q = document.getElementById('g1-search').value.toLowerCase();
+            let d = GSTR1.b2b.filter(x => x.g.toLowerCase().includes(q) || x.i.toLowerCase().includes(q)).slice(0,1000);
+            document.getElementById('g1-b2b-tbody').innerHTML = d.map(x=>`<tr class="hover:bg-slate-50 transition"><td class="p-4 text-left font-mono text-xs">${x.g}</td><td class="p-4 text-left font-bold">${x.i}</td><td class="p-4 text-left">${x.dt}</td><td class="p-4 font-bold text-blue-600">${x.tx.toFixed(2)}</td><td class="p-4">${x.rt}%</td><td class="p-4">${x.ig.toFixed(2)}</td><td class="p-4">${x.cg.toFixed(2)}</td><td class="p-4">${x.sg.toFixed(2)}</td></tr>`).join('');
+        },
+        exportCSV: () => {
+            let c = "GSTIN,Invoice,Date,Taxable,Rate,IGST,CGST,SGST\n" + GSTR1.b2b.map(x =>[x.g, x.i, x.dt, x.tx, x.rt, x.ig, x.cg, x.sg].map(Utils.escapeCSV).join(',')).join("\n");
+            let a = document.createElement('a'); a.href="data:text/csv;charset=utf-8,"+encodeURI(c); a.download="GSTR1_Export.csv"; a.click();
+        }
+    };
+
+    const Recon = {
+        data: { pr:[], g2b:[], out:[], ven:[] },
+        tempState: null,
+        fields:[
+            { id: 'gstin', label: 'Supplier GSTIN', keys:['gstin','uin'] },
+            { id: 'party', label: 'Party/Legal Name', keys:['party','name','supplier','trade','particulars'] },
+            { id: 'inv', label: 'Invoice Number', keys:['invoice','voucherno','documentnumber','vch'] },
+            { id: 'date', label: 'Invoice Date', keys: ['date'] },
+            { id: 'taxable', label: 'Taxable Value', keys: ['taxable','assessable','value','purchase'] },
+            { id: 'igst', label: 'IGST Amount', keys: ['integrated','igst'] },
+            { id: 'cgst', label: 'CGST Amount', keys:['central','cgst'] },
+            { id: 'sgst', label: 'SGST Amount', keys:['state','sgst','utgst'] }
+        ],
+        handleDrop: (e, t) => { e.preventDefault(); if(e.dataTransfer.files.length) Recon.extract(e.dataTransfer.files[0], t); },
+        processFile: (e, t) => { if(e.target.files.length) Recon.extract(e.target.files[0], t); },
+        extract: (f, type) => {
+            Utils.load(`Parsing ${type==='pr'?'Books':'Portal'} Data...`);
+            let r = new FileReader();
+            r.onload = (e) => {
+                let w = XLSX.read(e.target.result, { type: 'array' });
+                let rows = XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]], { header:1, raw:false, defval:"" });
+                Recon.initMapping(rows, type, f.name);
+            }; r.readAsArrayBuffer(f);
+        },
+        initMapping: (rows, type, filename) => {
+            let hIdx = rows.findIndex(r => r.some(c => String(c).toLowerCase().replace(/\s/g,'').includes('gstin')));
+            if(hIdx === -1) hIdx = 0;
+            Recon.tempState = { rows, type, hIdx, file: filename };
+            let hrSelect = document.getElementById('map-header-row'); hrSelect.innerHTML = '';
+            for(let i=0; i<Math.min(20, rows.length); i++) {
+                let preview = rows[i].filter(Boolean).join(' | ').substring(0, 80);
+                if(preview) hrSelect.innerHTML += `<option value="${i}" ${i === hIdx ? 'selected' : ''}>Row ${i+1}: ${preview}...</option>`;
             }
-        };
-
-        const UI = {
-            switchView: (vid) => {
-                document.querySelectorAll('.view-section').forEach(e => e.classList.add('hidden'));
-                document.querySelectorAll('nav a').forEach(e => e.classList.remove('bg-primary-600', 'text-white'));
-                document.getElementById('view-'+vid).classList.remove('hidden');
-                document.getElementById('nav-'+vid).classList.add('bg-primary-600', 'text-white');
-                const t = {'gstr1':'GSTR-1 Analyzer', 'recon-upload':'ITC Recon: Upload & Map', 'recon-dash':'ITC Recon: Dashboard', 'recon-table':'ITC Recon: Details', 'recon-vendor':'ITC Recon: Vendor Risk'};
-                document.getElementById('header-title').innerText = t[vid] || 'GST Suite';
-                Storage.save(Storage.KEYS.VIEW, vid);
-            },
-            switchTab: (pfx, tab) => {
-                document.querySelectorAll(`.${pfx}-tab`).forEach(b => b.classList.remove('active', 'text-blue-600', 'text-slate-500'));
-                document.querySelectorAll(`.${pfx}-panel`).forEach(c => c.classList.add('hidden'));
-                event.target.classList.add('active', 'text-blue-600');
-                document.getElementById(`${pfx}-tab-${tab}`).classList.remove('hidden');
-            }
-        };
-
-        const GSTR1 = {
-            raw: null, b2b:[], chart: null,
-            process: (e) => {
-                let f = e.target.files[0]; if(!f || !f.name.endsWith('.json')) return alert("Upload JSON only");
-                Utils.load("Parsing GSTR-1...");
-                let r = new FileReader();
-                r.onload = (ev) => {
-                    try { 
-                        let j = JSON.parse(ev.target.result); 
-                        GSTR1.raw = {}; for(let k in j) GSTR1.raw[k.toLowerCase()] = j[k]; 
-                        setTimeout(GSTR1.extract, 50); 
-                    } catch(err) { Utils.stopLoad(); alert("Invalid JSON Format"); }
-                }; r.readAsText(f);
-            },
-            extract: () => {
-                let r = GSTR1.raw; GSTR1.b2b = [];
-                (r.b2b||[]).forEach(b => (b.inv||[]).forEach(i => (i.itms||[]).forEach(it => {
-                    let d = it.itm_det||{};
-                    GSTR1.b2b.push({g:b.ctin||'', i:i.inum||'', dt:i.idt||'', tx:Utils.clean(d.txval), rt:Utils.clean(d.rt), ig:Utils.clean(d.iamt), cg:Utils.clean(d.camt), sg:Utils.clean(d.samt)});
-                })));
-                GSTR1.runValidation();
-            },
-            runValidation: () => {
-                let tTx=0, tTax=0, cdnr=0, b2c=0, logs=[], tr={};
-                const addT = (rt, tx, tax) => { tTx+=tx; tTax+=tax; let k=rt.toString(); if(!tr[k]&&k!=='0')k='Other'; if(!tr[k])tr[k]={v:0,t:0}; tr[k].v+=tx; tr[k].t+=tax; };
-                GSTR1.b2b.forEach(x => {
-                    let tax = x.ig+x.cg+x.sg; addT(x.rt, x.tx, tax);
-                    if(x.tx===0 && tax>0) logs.push(`❌ ERROR: Inv ${x.i} has zero taxable but tax applied.`);
-                    if(x.g && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(x.g)) logs.push(`❌ ERROR: Bad GSTIN: ${x.g}`);
-                });
-                (GSTR1.raw.b2cl||[]).forEach(p => (p.inv||[]).forEach(i => { b2c++; (i.itms||[]).forEach(it => { let d=it.itm_det||{}; addT(d.rt, Utils.clean(d.txval), Utils.clean(d.iamt)); }); }));
-                (GSTR1.raw.b2cs||[]).forEach(i => { b2c++; addT(i.rt, Utils.clean(i.txval), Utils.clean(i.iamt)+Utils.clean(i.camt)+Utils.clean(i.samt)); });
-                (GSTR1.raw.cdnr||[]).forEach(x => cdnr+=(x.nt||[]).length);
-                (GSTR1.raw.cdnur||[]).forEach(x => cdnr+=(x.nt||[]).length);
-                
-                // Update UI
-                document.getElementById('g1-val').innerText = Utils.curr(tTx); document.getElementById('g1-tax').innerText = Utils.curr(tTax);
-                document.getElementById('g1-inv').innerText =[...new Set(GSTR1.b2b.map(x=>x.i))].length + b2c;
-                document.getElementById('g1-b2b').innerText =[...new Set(GSTR1.b2b.map(x=>x.i))].length;
-                document.getElementById('g1-b2c').innerText = b2c; document.getElementById('g1-cdnr').innerText = cdnr;
-                document.getElementById('g1-log').innerHTML = logs.length ? logs.map(l=>`<div class="text-sm bg-red-50 text-red-900 border border-red-100 p-2.5 rounded-lg font-bold">${l}</div>`).join('') : '<div class="text-green-600 font-bold p-3 bg-green-50 rounded-lg">✅ Structural Validation Passed Perfectly.</div>';
-                
-                let lbl=[], val=[]; document.getElementById('g1-tax-tbl').innerHTML='';
-                for(let k in tr) { if(tr[k].v>0) { lbl.push(k+'%'); val.push(tr[k].v); document.getElementById('g1-tax-tbl').innerHTML += `<tr><td class="p-3 text-left font-bold text-slate-700">${k}%</td><td class="p-3">${tr[k].v.toFixed(2)}</td><td class="p-3">${tr[k].t.toFixed(2)}</td></tr>`; } }
-                
-                if(GSTR1.chart) GSTR1.chart.destroy();
-                GSTR1.chart = new Chart(document.getElementById('g1-chart'), { type:'bar', data: { labels:lbl, datasets:[{label:'Taxable', data:val, backgroundColor:'#3b82f6', borderRadius:4}] }});
-                
-                GSTR1.renderB2B();
-                document.getElementById('g1-upload-sec').classList.add('hidden');
-                document.getElementById('g1-dash-sec').classList.remove('hidden');
-                
-                Storage.save(Storage.KEYS.GSTR1, { b2b: GSTR1.b2b, raw: GSTR1.raw });
+            document.getElementById('map-title').innerText = `Map Columns for: ${filename}`;
+            Recon.renderColumnSelectors(hIdx);
+            Utils.stopLoad(); document.getElementById('mappingModal').classList.remove('hidden');
+        },
+        changeHeaderRow: (idx) => { Recon.tempState.hIdx = parseInt(idx); Recon.renderColumnSelectors(parseInt(idx)); },
+        renderColumnSelectors: (hIdx) => {
+            let rows = Recon.tempState.rows;
+            let isSplit = rows[hIdx+1] && rows[hIdx+1].some(c => String(c).toLowerCase().replace(/\s/g,'').includes('invoicenumber'));
+            let headers = rows[hIdx].map((h, i) => { let s = String(h||'').trim(); if(isSplit && rows[hIdx+1][i]) s += " - " + String(rows[hIdx+1][i]).trim(); return s; });
+            Recon.tempState.headers = headers; Recon.tempState.dataStartRow = isSplit ? hIdx + 2 : hIdx + 1;
+            let container = document.getElementById('map-fields-container'); container.innerHTML = '';
+            const findLastMatch = (keys) => { for(let i = headers.length-1; i>=0; i--) { let cln = headers[i].toLowerCase().replace(/[^a-z]/g, ''); if(keys.some(k => cln.includes(k))) return i; } return -1; };
+            Recon.fields.forEach(f => {
+                let defaultIdx = findLastMatch(f.keys);
+                let opts = `<option value="-1">-- Leave Blank / Not Available --</option>`;
+                headers.forEach((h, i) => { let text = h ? h : `(Empty Col ${i+1})`; opts += `<option value="${i}" ${i === defaultIdx ? 'selected' : ''}>[Col ${i+1}] ${text.substring(0,45)}</option>`; });
+                container.innerHTML += `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><label class="block text-xs font-black text-slate-500 uppercase mb-2">${f.label}</label><select id="map_${f.id}" class="w-full border border-slate-300 bg-slate-50 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium">${opts}</select></div>`;
+            });
+        },
+        cancelMapping: () => { document.getElementById(`f-${Recon.tempState.type}`).value = ''; Recon.tempState = null; document.getElementById('mappingModal').classList.add('hidden'); },
+        confirmMapping: () => {
+            let s = Recon.tempState, map = {}, hasError = false;
+            Recon.fields.forEach(f => { let val = parseInt(document.getElementById(`map_${f.id}`).value); if(val === -1 && ['taxable'].includes(f.id)) hasError = true; map[f.id] = val; });
+            if(hasError) return alert("Taxable Value column is mandatory.");
+            document.getElementById('mappingModal').classList.add('hidden');
+            Utils.load(`Extracting ${s.type.toUpperCase()} data...`);
+            setTimeout(() => {
+                let arr =[];
+                for(let i = s.dataStartRow; i < s.rows.length; i++) {
+                    let r = s.rows[i];
+                    let gstin = map.gstin !== -1 ? String(r[map.gstin]||'').trim().toUpperCase() : '';
+                    let inv = map.inv !== -1 ? String(r[map.inv]||'').trim() : '';
+                    let tx = map.taxable !== -1 ? Utils.clean(r[map.taxable]) : 0;
+                    if(!gstin && !inv && tx === 0) continue; 
+                    let ig = map.igst !== -1 ? Utils.clean(r[map.igst]) : 0;
+                    let cg = map.cgst !== -1 ? Utils.clean(r[map.cgst]) : 0;
+                    let sg = map.sgst !== -1 ? Utils.clean(r[map.sgst]) : 0;
+                    arr.push({ g: gstin||"NO_GSTIN", p: map.party !== -1 ? String(r[map.party]||'').trim() : 'Unknown', i: inv||"NO_INV_"+i, d: map.date !== -1 ? Utils.normDate(r[map.date]) : '', tx, ig, cg, sg, t: ig+cg+sg });
+                }
+                Recon.data[s.type] = arr;
+                Storage.save(Storage.KEYS.RECON, { pr: Recon.data.pr, g2b: Recon.data.g2b });
+                let el = document.getElementById(`${s.type}-status`); el.innerText = `✅ Loaded: ${arr.length} records`; el.classList.remove('hidden');
+                if(Recon.data.pr.length && Recon.data.g2b.length) document.getElementById('btn-run').disabled = false;
                 Utils.stopLoad();
-            },
-            renderB2B: () => {
-                let q = document.getElementById('g1-search').value.toLowerCase();
-                let d = GSTR1.b2b.filter(x => x.g.toLowerCase().includes(q) || x.i.toLowerCase().includes(q)).slice(0,1000);
-                document.getElementById('g1-b2b-tbody').innerHTML = d.map(x=>`<tr class="hover:bg-slate-50 transition"><td class="p-4 text-left font-mono text-xs">${x.g}</td><td class="p-4 text-left font-bold">${x.i}</td><td class="p-4 text-left">${x.dt}</td><td class="p-4 font-bold text-blue-600">${x.tx.toFixed(2)}</td><td class="p-4">${x.rt}%</td><td class="p-4">${x.ig.toFixed(2)}</td><td class="p-4">${x.cg.toFixed(2)}</td><td class="p-4">${x.sg.toFixed(2)}</td></tr>`).join('');
-            },
-            exportCSV: () => {
-                let c = "GSTIN,Invoice,Date,Taxable,Rate,IGST,CGST,SGST\n" + GSTR1.b2b.map(x =>[x.g, x.i, x.dt, x.tx, x.rt, x.ig, x.cg, x.sg].map(Utils.escapeCSV).join(',')).join("\n");
-                let a = document.createElement('a'); a.href="data:text/csv;charset=utf-8,"+encodeURI(c); a.download="GSTR1_Export.csv"; a.click();
-            }
-        };
-
-        const Recon = {
-            data: { pr:[], g2b:[], out:[], ven:[] },
-            tempState: null,
-            fields:[
-                { id: 'gstin', label: 'Supplier GSTIN', keys:['gstin','uin'] },
-                { id: 'party', label: 'Party/Legal Name', keys:['party','name','supplier','trade','particulars'] },
-                { id: 'inv', label: 'Invoice Number', keys: ['invoice','voucherno','documentnumber','vch'] },
-                { id: 'date', label: 'Invoice Date', keys: ['date'] },
-                { id: 'taxable', label: 'Taxable Value', keys: ['taxable','assessable','value','purchase'] },
-                { id: 'igst', label: 'IGST Amount', keys: ['integrated','igst'] },
-                { id: 'cgst', label: 'CGST Amount', keys:['central','cgst'] },
-                { id: 'sgst', label: 'SGST Amount', keys:['state','sgst','utgst'] }
-            ],
-            handleDrop: (e, t) => { e.preventDefault(); if(e.dataTransfer.files.length) Recon.extract(e.dataTransfer.files[0], t); },
-            processFile: (e, t) => { if(e.target.files.length) Recon.extract(e.target.files[0], t); },
-            extract: (f, type) => {
-                Utils.load(`Parsing ${type==='pr'?'Books':'Portal'} Data...`);
-                let r = new FileReader();
-                r.onload = (e) => {
-                    let w = XLSX.read(e.target.result, { type: 'array' });
-                    let rows = XLSX.utils.sheet_to_json(w.Sheets[w.SheetNames[0]], { header:1, raw:false, defval:"" });
-                    Recon.initMapping(rows, type, f.name);
-                }; r.readAsArrayBuffer(f);
-            },
-            initMapping: (rows, type, filename) => {
-                let hIdx = rows.findIndex(r => r.some(c => String(c).toLowerCase().replace(/\s/g,'').includes('gstin')));
-                if(hIdx === -1) hIdx = 0;
-                Recon.tempState = { rows, type, hIdx, file: filename };
-                let hrSelect = document.getElementById('map-header-row'); hrSelect.innerHTML = '';
-                for(let i=0; i<Math.min(20, rows.length); i++) {
-                    let preview = rows[i].filter(Boolean).join(' | ').substring(0, 80);
-                    if(preview) hrSelect.innerHTML += `<option value="${i}" ${i === hIdx ? 'selected' : ''}>Row ${i+1}: ${preview}...</option>`;
-                }
-                document.getElementById('map-title').innerText = `Map Columns for: ${filename}`;
-                Recon.renderColumnSelectors(hIdx);
-                Utils.stopLoad(); document.getElementById('mappingModal').classList.remove('hidden');
-            },
-            changeHeaderRow: (idx) => { Recon.tempState.hIdx = parseInt(idx); Recon.renderColumnSelectors(parseInt(idx)); },
-            renderColumnSelectors: (hIdx) => {
-                let rows = Recon.tempState.rows;
-                let isSplit = rows[hIdx+1] && rows[hIdx+1].some(c => String(c).toLowerCase().replace(/\s/g,'').includes('invoicenumber'));
-                let headers = rows[hIdx].map((h, i) => { let s = String(h||'').trim(); if(isSplit && rows[hIdx+1][i]) s += " - " + String(rows[hIdx+1][i]).trim(); return s; });
-                Recon.tempState.headers = headers; Recon.tempState.dataStartRow = isSplit ? hIdx + 2 : hIdx + 1;
-                let container = document.getElementById('map-fields-container'); container.innerHTML = '';
-                const findLastMatch = (keys) => { for(let i = headers.length-1; i>=0; i--) { let cln = headers[i].toLowerCase().replace(/[^a-z]/g, ''); if(keys.some(k => cln.includes(k))) return i; } return -1; };
-                Recon.fields.forEach(f => {
-                    let defaultIdx = findLastMatch(f.keys);
-                    let opts = `<option value="-1">-- Leave Blank / Not Available --</option>`;
-                    headers.forEach((h, i) => { let text = h ? h : `(Empty Col ${i+1})`; opts += `<option value="${i}" ${i === defaultIdx ? 'selected' : ''}>[Col ${i+1}] ${text.substring(0,45)}</option>`; });
-                    container.innerHTML += `<div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><label class="block text-xs font-black text-slate-500 uppercase mb-2">${f.label}</label><select id="map_${f.id}" class="w-full border border-slate-300 bg-slate-50 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 font-medium">${opts}</select></div>`;
+            }, 100);
+        },
+        agg: (arr, fuz) => {
+            let m = new Map();
+            arr.forEach(x => {
+                let k = `${x.g}_${Utils.normInv(x.i, fuz)}`;
+                if(m.has(k)) { let e=m.get(k); e.tx+=x.tx; e.ig+=x.ig; e.cg+=x.cg; e.sg+=x.sg; e.t+=x.t; }
+                else { m.set(k, {...x, cI: Utils.normInv(x.i, fuz), uid: 'u_'+Math.random().toString(36).substr(2,9)}); }
+            });
+            return Array.from(m.values());
+        },
+        runEngine: () => {
+            Utils.load("Running Core Reconciliation...");
+            setTimeout(() => {
+                let tol = parseFloat(document.getElementById('rec-tol').value||0);
+                let fuz = document.getElementById('rec-fuz').checked;
+                let prList = Recon.agg(Recon.data.pr, fuz);
+                let g2bList = Recon.agg(Recon.data.g2b, fuz);
+                Recon.data.out =[];
+                let g2bUnmatched = new Set(g2bList);
+                let prUnmatched = new Set(prList);
+                
+                prList.forEach(p => {
+                    let g = g2bList.find(x => x.g===p.g && x.cI===p.cI && g2bUnmatched.has(x) && Utils.amountClose(p.tx, x.tx, tol));
+                    if(g) { Recon.createMatch(p, g, 'MATCHED',[]); g2bUnmatched.delete(g); prUnmatched.delete(p); }
                 });
-            },
-            cancelMapping: () => { document.getElementById(`f-${Recon.tempState.type}`).value = ''; Recon.tempState = null; document.getElementById('mappingModal').classList.add('hidden'); },
-            confirmMapping: () => {
-                let s = Recon.tempState, map = {}, hasError = false;
-                Recon.fields.forEach(f => { let val = parseInt(document.getElementById(`map_${f.id}`).value); if(val === -1 && ['taxable'].includes(f.id)) hasError = true; map[f.id] = val; });
-                if(hasError) return alert("Taxable Value column is mandatory.");
-                document.getElementById('mappingModal').classList.add('hidden');
-                Utils.load(`Extracting ${s.type.toUpperCase()} data...`);
-                setTimeout(() => {
-                    let arr =[];
-                    for(let i = s.dataStartRow; i < s.rows.length; i++) {
-                        let r = s.rows[i];
-                        let gstin = map.gstin !== -1 ? String(r[map.gstin]||'').trim().toUpperCase() : '';
-                        let inv = map.inv !== -1 ? String(r[map.inv]||'').trim() : '';
-                        let tx = map.taxable !== -1 ? Utils.clean(r[map.taxable]) : 0;
-                        if(!gstin && !inv && tx === 0) continue; 
-                        let ig = map.igst !== -1 ? Utils.clean(r[map.igst]) : 0;
-                        let cg = map.cgst !== -1 ? Utils.clean(r[map.cgst]) : 0;
-                        let sg = map.sgst !== -1 ? Utils.clean(r[map.sgst]) : 0;
-                        arr.push({ g: gstin||"NO_GSTIN", p: map.party !== -1 ? String(r[map.party]||'').trim() : 'Unknown', i: inv||"NO_INV_"+i, d: map.date !== -1 ? Utils.normDate(r[map.date]) : '', tx, ig, cg, sg, t: ig+cg+sg });
+
+                prUnmatched.forEach(p => {
+                    let g = Array.from(g2bUnmatched).find(x => x.g===p.g && Utils.amountClose(p.tx, x.tx, tol));
+                    if(g) { 
+                        let issues =[`Inv format: ${p.i} → ${g.i}`];
+                        if(p.d !== g.d) issues.push(`Date: ${p.d} → ${g.d}`);
+                        Recon.createMatch(p, g, 'AUTO_CORRECTED', issues); g2bUnmatched.delete(g); prUnmatched.delete(p); 
                     }
-                    Recon.data[s.type] = arr;
-                    Storage.save(Storage.KEYS.RECON, { pr: Recon.data.pr, g2b: Recon.data.g2b });
-                    let el = document.getElementById(`${s.type}-status`); el.innerText = `✅ Loaded: ${arr.length} records`; el.classList.remove('hidden');
-                    if(Recon.data.pr.length && Recon.data.g2b.length) document.getElementById('btn-run').disabled = false;
-                    Utils.stopLoad();
-                }, 100);
-            },
-            agg: (arr, fuz) => {
-                let m = new Map();
-                arr.forEach(x => {
-                    let k = `${x.g}_${Utils.normInv(x.i, fuz)}`;
-                    if(m.has(k)) { let e=m.get(k); e.tx+=x.tx; e.ig+=x.ig; e.cg+=x.cg; e.sg+=x.sg; e.t+=x.t; }
-                    else { m.set(k, {...x, cI: Utils.normInv(x.i, fuz), uid: 'u_'+Math.random().toString(36).substr(2,9)}); }
                 });
-                return Array.from(m.values());
-            },
-            runEngine: () => {
-                Utils.load("Running Core Reconciliation...");
-                setTimeout(() => {
-                    let tol = parseFloat(document.getElementById('rec-tol').value||0);
-                    let fuz = document.getElementById('rec-fuz').checked;
-                    let prList = Recon.agg(Recon.data.pr, fuz);
-                    let g2bList = Recon.agg(Recon.data.g2b, fuz);
-                    Recon.data.out =[];
-                    let g2bUnmatched = new Set(g2bList);
-                    let prUnmatched = new Set(prList);
-                    
-                    // Exact Match (GSTIN + Inv + Amount)
-                    prList.forEach(p => {
-                        let g = g2bList.find(x => x.g===p.g && x.cI===p.cI && g2bUnmatched.has(x) && Utils.amountClose(p.tx, x.tx, tol));
-                        if(g) { Recon.createMatch(p, g, 'MATCHED', []); g2bUnmatched.delete(g); prUnmatched.delete(p); }
+
+                let gstinCandidates =[];
+                prUnmatched.forEach(p => {
+                    let matches = Array.from(g2bUnmatched).filter(x => x.g !== p.g && x.cI === p.cI && Utils.amountClose(p.tx, x.tx, tol));
+                    matches.forEach(g => {
+                        let conf = 60;
+                        let ed = Utils.levenshtein((p.g||'').toUpperCase(), (g.g||'').toUpperCase());
+                        let risk = ed <= 3 ? 'TYPO' : 'DIFFERENT';
+                        if(risk === 'TYPO') conf += 15;
+                        if(p.d === g.d) conf += 25;
+                        gstinCandidates.push({ p, g, risk, conf, ed });
                     });
-
-                    // Fuzzy Match (Amount + GSTIN signature)
-                    prUnmatched.forEach(p => {
-                        let g = Array.from(g2bUnmatched).find(x => x.g===p.g && Utils.amountClose(p.tx, x.tx, tol));
-                        if(g) { 
-                            let issues = [`Inv format: ${p.i} → ${g.i}`];
-                            if(p.d !== g.d) issues.push(`Date: ${p.d} → ${g.d}`);
-                            Recon.createMatch(p, g, 'AUTO_CORRECTED', issues); g2bUnmatched.delete(g); prUnmatched.delete(p); 
-                        }
-                    });
-
-                    prUnmatched.forEach(p => Recon.createMissing(p, 'MISSING_IN_2B'));
-                    g2bUnmatched.forEach(g => Recon.createMissing(g, 'MISSING_IN_PR'));
-                    
-                    Recon.finalizeRecon();
-                    UI.switchView('recon-dash');
-                }, 100);
-            },
-            createMatch: (p, g, st, issues) => {
-                Recon.data.out.push({
-                    uid: 'r_'+Math.random().toString(36).substr(2,9), marked: false, st, g: p.g, p: p.p, i: p.i, d: p.d, gi: g.i, gd: g.d,
-                    ptx: p.tx, pig: p.ig, pcg: p.cg, psg: p.sg, pt: p.t,
-                    gtx: g.tx, gig: g.ig, gcg: g.cg, gsg: g.sg, gt: g.t,
-                    dtx: p.tx - g.tx, dt: p.t - g.t, issues
                 });
-            },
-            createMissing: (obj, st) => {
-                let isPR = st === 'MISSING_IN_2B';
-                Recon.data.out.push({
-                    uid: 'r_'+Math.random().toString(36).substr(2,9), marked: false, st, g: obj.g, p: obj.p, i: obj.i, d: obj.d, gi: '', gd: '',
-                    ptx: isPR ? obj.tx : 0, pig: isPR ? obj.ig : 0, pcg: isPR ? obj.cg : 0, psg: isPR ? obj.sg : 0, pt: isPR ? obj.t : 0,
-                    gtx: isPR ? 0 : obj.tx, gig: isPR ? 0 : obj.ig, gcg: isPR ? 0 : obj.cg, gsg: isPR ? 0 : obj.sg, gt: isPR ? 0 : obj.t,
-                    dtx: isPR ? obj.tx : -obj.tx, dt: isPR ? obj.t : -obj.t, issues:[]
+                gstinCandidates.sort((a, b) => b.conf - a.conf);
+                gstinCandidates.forEach(c => {
+                    if(prUnmatched.has(c.p) && g2bUnmatched.has(c.g)) {
+                        let issues =[`🔴 GSTIN: ${c.p.g} vs ${c.g.g} (${c.risk})`];
+                        if(c.p.d !== c.g.d) issues.push(`Date gap: ${c.p.d} vs ${c.g.d}`);
+                        Recon.createMatch(c.p, c.g, 'GSTIN_MISMATCH', issues);
+                        prUnmatched.delete(c.p);
+                        g2bUnmatched.delete(c.g);
+                    }
                 });
-            },
-            finalizeRecon: () => {
-                Recon.recalcDashAndVendor();
-                Storage.save(Storage.KEYS.RECON_OUT, Recon.data.out);
-                ['recon-dash','recon-table','recon-vendor'].forEach(id=>document.getElementById('nav-'+id).classList.remove('hidden'));
-                Recon.renderTable(); Recon.rVen();
-                Utils.stopLoad();
-            },
-            recalcDashAndVendor: () => {
-                let m=0, mm=0, m2b=0, mpr=0, sf=0, df=0, rs=0, un=0;
-                let vs = {};
-                Recon.data.out.forEach(x => {
-                    if(x.st==='MATCHED' || x.st==='AUTO_CORRECTED'){ m++; sf+=x.gt; } 
-                    else if(x.st==='MISMATCH'){ mm++; df+=x.dt; }
-                    else if(x.st==='MISSING_IN_2B'){ m2b++; rs+=x.pt; }
-                    else if(x.st==='MISSING_IN_PR'){ mpr++; un+=x.gt; }
-                    if(!vs[x.g]) vs[x.g] = {g:x.g, p:x.p, tc:0, mc:0, mr:0, ls:0};
-                    let v = vs[x.g]; v.tc++;
-                    if(x.st==='MATCHED' || x.st==='AUTO_CORRECTED') v.mc++;
-                    if(x.st==='MISSING_IN_2B'){ v.mr++; v.ls+=x.pt; }
-                });
-                Recon.data.ven = Object.values(vs).sort((a,b) => b.ls - a.ls);
-                document.getElementById('dash-m-c').innerText=m; document.getElementById('dash-m-v').innerText=Utils.curr(sf);
-                document.getElementById('dash-mm-c').innerText=mm; document.getElementById('dash-mm-v').innerText=Utils.curr(df);
-                document.getElementById('dash-m2b-c').innerText=m2b; document.getElementById('dash-m2b-v').innerText=Utils.curr(rs);
-                document.getElementById('dash-mpr-c').innerText=mpr; document.getElementById('dash-mpr-v').innerText=Utils.curr(un);
-                if(window.rc) window.rc.destroy();
-                window.rc = new Chart(document.getElementById('rec-chart'), { type:'doughnut', data:{ labels:['Matched','Mismatch','Missing 2B','Missing Books'], datasets:[{data:[m,mm,m2b,mpr], backgroundColor:['#22c55e','#eab308','#ef4444','#3b82f6'], borderWidth:0}] }, options:{cutout:'75%', plugins:{legend:{position:'bottom'}}} });
-            },
-            renderTable: () => {
-                let f = document.getElementById('rec-flt').value, q = document.getElementById('rec-src').value.toLowerCase();
-                let d = Recon.data.out.filter(x => (f==='ALL'||x.st===f) && (x.g.toLowerCase().includes(q) || x.i.toLowerCase().includes(q) || x.p.toLowerCase().includes(q))).slice(0,1000);
-                const bg = {'MATCHED':'bg-green-100 text-green-800 border-green-200','AUTO_CORRECTED':'bg-purple-100 text-purple-800 border-purple-200','MISMATCH':'bg-yellow-100 text-yellow-800 border-yellow-200','MISSING_IN_2B':'bg-red-100 text-red-800 border-red-200','MISSING_IN_PR':'bg-blue-100 text-blue-800 border-blue-200'};
-                document.getElementById('rec-tbody').innerHTML = d.map(x=>`
-                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition ${x.marked ? 'row-marked' : ''}">
-                        <td class="p-4 text-center align-top"><span class="px-3 py-1 rounded text-[10px] font-black border ${bg[x.st]}">${x.st}</span></td>
-                        <td class="p-4 text-left leading-tight align-top"><span class="font-mono text-xs text-slate-500 block">${x.g}</span><span class="font-bold text-slate-800 truncate max-w-[200px] inline-block">${x.p}</span>${x.issues.length?`<div class="mt-1.5">${x.issues.map(i=>`<span class="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-bold mr-1">${i}</span>`).join('')}</div>`:''}</td>
-                        <td class="p-4 text-left leading-tight align-top"><span class="font-bold block">${x.i}${x.gi&&x.gi!==x.i?`<span class="text-purple-500 text-[10px]">→${x.gi}</span>`:''}</span><span class="text-xs text-slate-500 font-medium">${x.d}</span></td>
-                        <td class="p-4 font-bold text-blue-600 bg-blue-50/30">${x.ptx.toFixed(2)}</td><td class="p-4 font-bold text-indigo-600 bg-indigo-50/30">${x.gtx.toFixed(2)}</td>
-                        <td class="p-4 font-bold text-blue-600 bg-blue-50/30">${x.pt.toFixed(2)}</td><td class="p-4 font-bold text-indigo-600 bg-indigo-50/30">${x.gt.toFixed(2)}</td>
-                        <td class="p-4 font-black ${Math.abs(x.dt)>5?'text-red-600':''}">${x.dt.toFixed(2)}</td>
-                        <td class="p-4 text-center">
-                            <div class="flex gap-3 justify-center items-center">
-                                <button onclick="Recon.toggleMark('${x.uid}')" class="text-xl ${x.marked?'text-purple-600':'text-slate-300'}">📌</button>
-                                <button onclick="Recon.editRow('${x.uid}')" class="text-xl">✏️</button>
-                                <button onclick="Recon.deleteRow('${x.uid}')" class="text-xl">🗑️</button>
-                            </div>
-                        </td>
-                    </tr>`).join('');
-            },
-            rVen: () => {
-                document.getElementById('rec-ven-tbody').innerHTML = Recon.data.ven.map(v=>`
-                    <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-                        <td class="p-5 text-left"><span class="font-mono text-xs text-slate-500 block">${v.g}</span><span class="font-bold text-slate-800 text-base">${v.p}</span></td>
-                        <td class="p-5 text-center font-bold text-slate-600 text-base">${v.tc}</td>
-                        <td class="p-5 text-center text-green-600 font-black text-base">${v.mc}</td>
-                        <td class="p-5 text-center text-red-500 font-black text-base">${v.mr}</td>
-                        <td class="p-5 text-right font-black text-red-600 text-base">${Utils.curr(v.ls)}</td>
-                    </tr>`).join('');
-            },
-            toggleMark: (uid) => {
-                let r = Recon.data.out.find(x => x.uid === uid); 
-                if(r) { r.marked = !r.marked; Storage.save(Storage.KEYS.RECON_OUT, Recon.data.out); Recon.renderTable(); }
-            },
-            deleteRow: (uid) => {
-                if(!confirm("Remove this entry?")) return;
-                Recon.data.out = Recon.data.out.filter(x => x.uid !== uid);
+
+                prUnmatched.forEach(p => Recon.createMissing(p, 'MISSING_IN_2B'));
+                g2bUnmatched.forEach(g => Recon.createMissing(g, 'MISSING_IN_PR'));
+                
                 Recon.finalizeRecon();
-            },
-            editRow: (uid) => {
-                let r = Recon.data.out.find(x => x.uid === uid); if(!r) return;
-                document.getElementById('edit-uid').value = uid;
-                document.getElementById('edit-gstin').value = r.g; document.getElementById('edit-inv').value = r.i; document.getElementById('edit-party').value = r.p;
-                document.getElementById('edit-ptx').value = r.ptx; document.getElementById('edit-gtx').value = r.gtx;
-                document.getElementById('edit-pt').value = r.pt; document.getElementById('edit-gt').value = r.gt;
-                document.getElementById('editModal').classList.remove('hidden');
-            },
-            saveRowEdit: () => {
-                let uid = document.getElementById('edit-uid').value; let r = Recon.data.out.find(x => x.uid === uid);
-                r.g = document.getElementById('edit-gstin').value.toUpperCase();
-                r.i = document.getElementById('edit-inv').value.toUpperCase();
-                r.p = document.getElementById('edit-party').value;
-                r.ptx = Utils.clean(document.getElementById('edit-ptx').value);
-                r.gtx = Utils.clean(document.getElementById('edit-gtx').value);
-                r.pt = Utils.clean(document.getElementById('edit-pt').value);
-                r.gt = Utils.clean(document.getElementById('edit-gt').value);
-                r.dtx = r.ptx - r.gtx; r.dt = r.pt - r.gt;
-                if (Math.abs(r.dt) < 5) r.st = 'MATCHED'; else r.st = 'MISMATCH';
-                document.getElementById('editModal').classList.add('hidden');
-                Recon.finalizeRecon();
-            },
-            exportExcel: () => {
-                let wb = XLSX.utils.book_new();
-                let aoa = [["Status","GSTIN","Party","Invoice","Date","Taxable(PR)","Tax(PR)","Taxable(2B)","Tax(2B)","Diff"]];
-                Recon.data.out.forEach(x=>aoa.push([x.st,x.g,x.p,x.i,x.d,x.ptx,x.pt,x.gtx,x.gt,x.dt]));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Recon");
-                XLSX.writeFile(wb, "GST_Pro_Recon.xlsx");
-            }
-        };
+                UI.switchView('recon-dash');
+            }, 100);
+        },
+        createMatch: (p, g, st, issues) => {
+            Recon.data.out.push({
+                uid: 'r_'+Math.random().toString(36).substr(2,9), marked: false, st, g: p.g, p: p.p, i: p.i, d: p.d, gi: g.i, gd: g.d,
+                ptx: p.tx, pig: p.ig, pcg: p.cg, psg: p.sg, pt: p.t,
+                gtx: g.tx, gig: g.ig, gcg: g.cg, gsg: g.sg, gt: g.t,
+                dtx: p.tx - g.tx, dt: p.t - g.t, issues
+            });
+        },
+        createMissing: (obj, st) => {
+            let isPR = st === 'MISSING_IN_2B';
+            Recon.data.out.push({
+                uid: 'r_'+Math.random().toString(36).substr(2,9), marked: false, st, g: obj.g, p: obj.p, i: obj.i, d: obj.d, gi: '', gd: '',
+                ptx: isPR ? obj.tx : 0, pig: isPR ? obj.ig : 0, pcg: isPR ? obj.cg : 0, psg: isPR ? obj.sg : 0, pt: isPR ? obj.t : 0,
+                gtx: isPR ? 0 : obj.tx, gig: isPR ? 0 : obj.ig, gcg: isPR ? 0 : obj.cg, gsg: isPR ? 0 : obj.sg, gt: isPR ? 0 : obj.t,
+                dtx: isPR ? obj.tx : -obj.tx, dt: isPR ? obj.t : -obj.t, issues:[]
+            });
+        },
+        finalizeRecon: () => {
+            Recon.recalcDashAndVendor();
+            Storage.save(Storage.KEYS.RECON_OUT, Recon.data.out);['recon-dash','recon-table','recon-vendor'].forEach(id=>document.getElementById('nav-'+id).classList.remove('hidden'));
+            Recon.renderTable(); Recon.rVen();
+            Utils.stopLoad();
+        },
+        recalcDashAndVendor: () => {
+            let m=0, mm=0, m2b=0, mpr=0, gm=0, sf=0, df=0, rs=0, un=0, gmv=0;
+            let vs = {};
+            Recon.data.out.forEach(x => {
+                if(x.st==='MATCHED' || x.st==='AUTO_CORRECTED'){ m++; sf+=x.gt; } 
+                else if(x.st==='MISMATCH'){ mm++; df+=x.dt; }
+                else if(x.st==='GSTIN_MISMATCH'){ gm++; gmv+=x.gt; }
+                else if(x.st==='MISSING_IN_2B'){ m2b++; rs+=x.pt; }
+                else if(x.st==='MISSING_IN_PR'){ mpr++; un+=x.gt; }
+                if(!vs[x.g]) vs[x.g] = {g:x.g, p:x.p, tc:0, mc:0, mr:0, ls:0};
+                let v = vs[x.g]; v.tc++;
+                if(x.st==='MATCHED' || x.st==='AUTO_CORRECTED') v.mc++;
+                if(x.st==='MISSING_IN_2B'){ v.mr++; v.ls+=x.pt; }
+            });
+            Recon.data.ven = Object.values(vs).sort((a,b) => b.ls - a.ls);
+            document.getElementById('dash-m-c').innerText=m; document.getElementById('dash-m-v').innerText=Utils.curr(sf);
+            document.getElementById('dash-mm-c').innerText=mm; document.getElementById('dash-mm-v').innerText=Utils.curr(df);
+            document.getElementById('dash-gm-c').innerText=gm; document.getElementById('dash-gm-v').innerText=Utils.curr(gmv);
+            document.getElementById('dash-m2b-c').innerText=m2b; document.getElementById('dash-m2b-v').innerText=Utils.curr(rs);
+            document.getElementById('dash-mpr-c').innerText=mpr; document.getElementById('dash-mpr-v').innerText=Utils.curr(un);
+            if(window.rc) window.rc.destroy();
+            window.rc = new Chart(document.getElementById('rec-chart'), { type:'doughnut', data:{ labels:['Matched','Mismatch','Missing 2B','Missing Books', 'GSTIN Mismatch'], datasets:[{data:[m,mm,m2b,mpr,gm], backgroundColor:['#22c55e','#eab308','#ef4444','#3b82f6','#f97316'], borderWidth:0}] }, options:{cutout:'75%', plugins:{legend:{position:'bottom'}}} });
+        },
+        renderTable: () => {
+            let selectedFilters = Array.from(document.querySelectorAll('#rec-filters input:checked')).map(cb => cb.value);
+            let q = document.getElementById('rec-src').value.toLowerCase();
+            let d = Recon.data.out.filter(x => selectedFilters.includes(x.st) && (x.g.toLowerCase().includes(q) || x.i.toLowerCase().includes(q) || x.p.toLowerCase().includes(q))).slice(0,1000);
+            const bg = {'MATCHED':'bg-green-100 text-green-800 border-green-200','AUTO_CORRECTED':'bg-purple-100 text-purple-800 border-purple-200','GSTIN_MISMATCH':'bg-orange-100 text-orange-800 border-orange-200 font-bold','MISMATCH':'bg-yellow-100 text-yellow-800 border-yellow-200','MISSING_IN_2B':'bg-red-100 text-red-800 border-red-200','MISSING_IN_PR':'bg-blue-100 text-blue-800 border-blue-200'};
+            document.getElementById('rec-tbody').innerHTML = d.map(x=>`
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition ${x.marked ? 'row-marked' : ''}">
+                    <td class="p-4 text-center align-top"><span class="px-3 py-1 rounded text-[10px] font-black border ${bg[x.st]}">${x.st}</span></td>
+                    <td class="p-4 text-left leading-tight align-top"><span class="font-mono text-xs text-slate-500 block">${x.g}</span><span class="font-bold text-slate-800 truncate max-w-[200px] inline-block">${x.p}</span>${x.issues.length?`<div class="mt-1.5">${x.issues.map(i=>`<span class="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-bold mr-1">${i}</span>`).join('')}</div>`:''}</td>
+                    <td class="p-4 text-left leading-tight align-top"><span class="font-bold block">${x.i}${x.gi&&x.gi!==x.i?`<span class="text-purple-500 text-[10px]">→${x.gi}</span>`:''}</span><span class="text-xs text-slate-500 font-medium">${x.d}</span></td>
+                    <td class="p-4 font-bold text-blue-600 bg-blue-50/30">${x.ptx.toFixed(2)}</td><td class="p-4 font-bold text-indigo-600 bg-indigo-50/30">${x.gtx.toFixed(2)}</td>
+                    <td class="p-4 font-bold text-blue-600 bg-blue-50/30">${x.pt.toFixed(2)}</td><td class="p-4 font-bold text-indigo-600 bg-indigo-50/30">${x.gt.toFixed(2)}</td>
+                    <td class="p-4 font-black ${Math.abs(x.dt)>5?'text-red-600':''}">${x.dt.toFixed(2)}</td>
+                    <td class="p-4 text-center">
+                        <div class="flex gap-3 justify-center items-center">
+                            <button onclick="Recon.toggleMark('${x.uid}')" class="text-xl ${x.marked?'text-purple-600':'text-slate-300'}">📌</button>
+                            <button onclick="Recon.editRow('${x.uid}')" class="text-xl">✏️</button>
+                            <button onclick="Recon.deleteRow('${x.uid}')" class="text-xl">🗑️</button>
+                        </div>
+                    </td>
+                </tr>`).join('');
+        },
+        rVen: () => {
+            document.getElementById('rec-ven-tbody').innerHTML = Recon.data.ven.map(v=>`
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                    <td class="p-5 text-left"><span class="font-mono text-xs text-slate-500 block">${v.g}</span><span class="font-bold text-slate-800 text-base">${v.p}</span></td>
+                    <td class="p-5 text-center font-bold text-slate-600 text-base">${v.tc}</td>
+                    <td class="p-5 text-center text-green-600 font-black text-base">${v.mc}</td>
+                    <td class="p-5 text-center text-red-500 font-black text-base">${v.mr}</td>
+                    <td class="p-5 text-right font-black text-red-600 text-base">${Utils.curr(v.ls)}</td>
+                </tr>`).join('');
+        },
+        toggleMark: (uid) => {
+            let r = Recon.data.out.find(x => x.uid === uid); 
+            if(r) { r.marked = !r.marked; Storage.save(Storage.KEYS.RECON_OUT, Recon.data.out); Recon.renderTable(); }
+        },
+        deleteRow: (uid) => {
+            if(!confirm("Remove this entry?")) return;
+            Recon.data.out = Recon.data.out.filter(x => x.uid !== uid);
+            Recon.finalizeRecon();
+        },
+        editRow: (uid) => {
+            let r = Recon.data.out.find(x => x.uid === uid); if(!r) return;
+            document.getElementById('edit-uid').value = uid;
+            document.getElementById('edit-gstin').value = r.g; document.getElementById('edit-inv').value = r.i; document.getElementById('edit-party').value = r.p;
+            document.getElementById('edit-ptx').value = r.ptx; document.getElementById('edit-gtx').value = r.gtx;
+            document.getElementById('edit-pt').value = r.pt; document.getElementById('edit-gt').value = r.gt;
+            document.getElementById('editModal').classList.remove('hidden');
+        },
+        saveRowEdit: () => {
+            let uid = document.getElementById('edit-uid').value; let r = Recon.data.out.find(x => x.uid === uid);
+            r.g = document.getElementById('edit-gstin').value.toUpperCase();
+            r.i = document.getElementById('edit-inv').value.toUpperCase();
+            r.p = document.getElementById('edit-party').value;
+            r.ptx = Utils.clean(document.getElementById('edit-ptx').value);
+            r.gtx = Utils.clean(document.getElementById('edit-gtx').value);
+            r.pt = Utils.clean(document.getElementById('edit-pt').value);
+            r.gt = Utils.clean(document.getElementById('edit-gt').value);
+            r.dtx = r.ptx - r.gtx; r.dt = r.pt - r.gt;
+            if (Math.abs(r.dt) < 5) r.st = 'MATCHED'; else r.st = 'MISMATCH';
+            document.getElementById('editModal').classList.add('hidden');
+            Recon.finalizeRecon();
+        },
+        exportExcel: () => {
+            let wb = XLSX.utils.book_new();
+            let aoa = [["Status","GSTIN","Party","Invoice","Date","Taxable(PR)","Tax(PR)","Taxable(2B)","Tax(2B)","Diff"]];
+            Recon.data.out.forEach(x=>aoa.push([x.st,x.g,x.p,x.i,x.d,x.ptx,x.pt,x.gtx,x.gt,x.dt]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Recon");
+            XLSX.writeFile(wb, "GST_Pro_Recon.xlsx");
+        }
+    };
 
-        // --- Init Function to Restore Session ---
-        window.onload = () => {
-            // Restore GSTR1
-            const g1 = Storage.get(Storage.KEYS.GSTR1);
-            if(g1) {
-                GSTR1.b2b = g1.b2b; GSTR1.raw = g1.raw;
-                GSTR1.runValidation();
-            }
+    window.onload = () => {
+        const g1 = Storage.get(Storage.KEYS.GSTR1);
+        if(g1) {
+            GSTR1.b2b = g1.b2b; GSTR1.raw = g1.raw;
+            GSTR1.runValidation();
+        }
 
-            // Restore Recon
-            const recInputs = Storage.get(Storage.KEYS.RECON);
-            if(recInputs) {
-                Recon.data.pr = recInputs.pr; Recon.data.g2b = recInputs.g2b;
-                document.getElementById('pr-status').innerText = `✅ Found cached PR: ${Recon.data.pr.length} rows`;
-                document.getElementById('pr-status').classList.remove('hidden');
-                document.getElementById('g2b-status').innerText = `✅ Found cached 2B: ${Recon.data.g2b.length} rows`;
-                document.getElementById('g2b-status').classList.remove('hidden');
-                document.getElementById('btn-run').disabled = false;
-            }
+        const recInputs = Storage.get(Storage.KEYS.RECON);
+        if(recInputs) {
+            Recon.data.pr = recInputs.pr; Recon.data.g2b = recInputs.g2b;
+            document.getElementById('pr-status').innerText = `✅ Found cached PR: ${Recon.data.pr.length} rows`;
+            document.getElementById('pr-status').classList.remove('hidden');
+            document.getElementById('g2b-status').innerText = `✅ Found cached 2B: ${Recon.data.g2b.length} rows`;
+            document.getElementById('g2b-status').classList.remove('hidden');
+            document.getElementById('btn-run').disabled = false;
+        }
 
-            const recOut = Storage.get(Storage.KEYS.RECON_OUT);
-            if(recOut) {
-                Recon.data.out = recOut;
-                Recon.finalizeRecon();
-            }
+        const recOut = Storage.get(Storage.KEYS.RECON_OUT);
+        if(recOut) {
+            Recon.data.out = recOut;
+            Recon.finalizeRecon();
+        }
 
-            // Restore View
-            const view = Storage.get(Storage.KEYS.VIEW);
-            if(view) UI.switchView(view);
-        };
-    </script>
+        const view = Storage.get(Storage.KEYS.VIEW);
+        if(view) UI.switchView(view);
+    };
+</script>
 </body>
 </html>
